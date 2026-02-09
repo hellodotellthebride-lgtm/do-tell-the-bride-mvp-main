@@ -911,13 +911,20 @@ const WeddingHubScreen = ({ navigation }) => {
 
 import BudgetBuddyScreen from './src/screens/BudgetBuddyScreen';
 import CategoryDetailScreen from './src/screens/CategoryDetailScreen';
-const GuestNestScreen = () => <PlaceholderScreen label="Guest Nest" />;
+import PaymentScheduleScreen from './src/screens/PaymentScheduleScreen';
+import AddPaymentScreen from './src/screens/AddPaymentScreen';
+import PaymentDetailScreen from './src/screens/PaymentDetailScreen';
+import GuestNestNavigator from './src/guestNest/GuestNestNavigator';
+const GuestNestScreen = () => <GuestNestNavigator />;
 const MoreScreen = () => <PlaceholderScreen label="More" />;
 
 const BudgetBuddyNavigator = () => (
   <BudgetBuddyStack.Navigator screenOptions={{ headerShown: false }}>
     <BudgetBuddyStack.Screen name="BudgetBuddyHome" component={BudgetBuddyScreen} />
     <BudgetBuddyStack.Screen name="BudgetCategoryDetail" component={CategoryDetailScreen} />
+    <BudgetBuddyStack.Screen name="PaymentSchedule" component={PaymentScheduleScreen} />
+    <BudgetBuddyStack.Screen name="AddPayment" component={AddPaymentScreen} />
+    <BudgetBuddyStack.Screen name="PaymentDetail" component={PaymentDetailScreen} />
   </BudgetBuddyStack.Navigator>
 );
 

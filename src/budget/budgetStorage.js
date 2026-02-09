@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { emitCategoryChange } from './budgetEvents';
 
 const STORAGE_KEY = 'BUDGET_BUDDY_STATE';
 
@@ -29,6 +30,7 @@ const DEFAULT_STATE = {
   categories: [],
   allocations: {},
   quotes: [],
+  payments: [],
 };
 
 const normalizeCategory = (category) => {
@@ -46,6 +48,7 @@ const ensureCategories = (storedCategories) =>
   Array.isArray(storedCategories) ? storedCategories.map(normalizeCategory) : [];
 
 const createQuoteId = () => `quote-${Date.now()}-${Math.round(Math.random() * 1000)}`;
+const createPaymentId = () => `payment-${Date.now()}-${Math.round(Math.random() * 1000)}`;
 
 const normalizeQuote = (quote) => ({
   id: quote.id || createQuoteId(),
@@ -60,6 +63,22 @@ const normalizeQuote = (quote) => ({
 
 const ensureQuotes = (storedQuotes) =>
   Array.isArray(storedQuotes) ? storedQuotes.map(normalizeQuote) : [];
+
+const normalizePayment = (payment) => ({
+  id: payment.id || createPaymentId(),
+  categoryId: payment.categoryId ?? null,
+  categoryName: payment.categoryName ?? '',
+  vendorName: payment.vendorName ?? '',
+  amount: Number(payment.amount) || 0,
+  dueDate: payment.dueDate ?? null,
+  paymentType: payment.paymentType ?? 'deposit',
+  status: payment.status === 'paid' ? 'paid' : 'pending',
+  createdAt: payment.createdAt ?? new Date().toISOString(),
+  updatedAt: payment.updatedAt ?? new Date().toISOString(),
+});
+
+const ensurePayments = (storedPayments) =>
+  Array.isArray(storedPayments) ? storedPayments.map(normalizePayment) : [];
 
 const ensureAllocations = (categories, storedAllocations = {}) => {
   const allocations = { ...storedAllocations };
@@ -86,6 +105,7 @@ export const loadBudgetState = async () => {
       categories,
       allocations,
       quotes,
+      payments: ensurePayments(parsed.payments),
     };
   } catch (error) {
     console.warn('[budget] unable to load budget state', error);
@@ -103,6 +123,9 @@ export const saveBudgetState = async (state) => {
     };
     if (state.quotes === undefined && existing.quotes === undefined) {
       nextState.quotes = [];
+    }
+    if (state.payments === undefined && existing.payments === undefined) {
+      nextState.payments = [];
     }
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
   } catch (error) {
@@ -157,6 +180,9 @@ export const addBudgetCategories = async (labels = []) => {
     allocations,
   };
   await saveBudgetState(nextState);
+  emitCategoryChange(nextState.categories || [], {
+    added: additions.map((cat) => cat.id),
+  });
   return { state: nextState, addedCategories: additions };
 };
 
@@ -188,6 +214,9 @@ export const updateBudgetCategory = async (categoryId, updates = {}) => {
     allocations: nextAllocations,
   };
   await saveBudgetState(nextState);
+  emitCategoryChange(nextState.categories || [], {
+    updated: categoryId,
+  });
   return nextState;
 };
 
@@ -205,6 +234,9 @@ export const deleteBudgetCategory = async (categoryId) => {
     allocations,
   };
   await saveBudgetState(nextState);
+  emitCategoryChange(nextState.categories || [], {
+    deleted: categoryId,
+  });
   return nextState;
 };
 
@@ -263,6 +295,70 @@ export const deleteQuote = async (quoteId) => {
   const nextState = {
     ...state,
     quotes: nextQuotes,
+  };
+  await saveBudgetState(nextState);
+  return nextState;
+};
+
+export const PAYMENT_TYPES = [
+  { id: 'deposit', label: 'Deposit' },
+  { id: 'instalment', label: 'Instalment' },
+  { id: 'final', label: 'Final Balance' },
+  { id: 'other', label: 'Other' },
+];
+
+export const addPayment = async (data) => {
+  const state = await loadBudgetState();
+  const payment = normalizePayment({
+    ...data,
+    id: createPaymentId(),
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  });
+  const payments = [payment, ...(state.payments || [])];
+  const nextState = {
+    ...state,
+    payments,
+  };
+  await saveBudgetState(nextState);
+  return nextState;
+};
+
+export const updatePayment = async (paymentId, updates = {}) => {
+  const state = await loadBudgetState();
+  const payments = state.payments || [];
+  let updated = false;
+  const nextPayments = payments.map((payment) => {
+    if (payment.id !== paymentId) return payment;
+    updated = true;
+    return normalizePayment({
+      ...payment,
+      ...updates,
+      id: payment.id,
+      updatedAt: new Date().toISOString(),
+    });
+  });
+  if (!updated) {
+    return state;
+  }
+  const nextState = {
+    ...state,
+    payments: nextPayments,
+  };
+  await saveBudgetState(nextState);
+  return nextState;
+};
+
+export const deletePayment = async (paymentId) => {
+  const state = await loadBudgetState();
+  const payments = state.payments || [];
+  const nextPayments = payments.filter((payment) => payment.id !== paymentId);
+  if (nextPayments.length === payments.length) {
+    return state;
+  }
+  const nextState = {
+    ...state,
+    payments: nextPayments,
   };
   await saveBudgetState(nextState);
   return nextState;

@@ -82,9 +82,8 @@ const BudgetInputModal = ({ visible, title, helper, initialValue, onClose, onSav
 
 const StatusPill = ({ status }) => {
   const statusConfig = {
-    ok: { label: 'OK', dot: colors.success, bg: '#E8F2ED', text: colors.success },
-    new: { label: 'New', dot: '#B1A399', bg: '#F2EEEB', text: '#9B9085' },
-    over: { label: 'Over', dot: '#B64C40', bg: '#FFF4F2', text: '#B64C40' },
+    ok: { label: 'OK', dot: '#78A390', bg: '#F2F7F4', text: '#4F6B60' },
+    over: { label: 'Over', dot: '#D08A80', bg: '#FFF6F4', text: '#B55F54' },
   };
   const config = statusConfig[status] || statusConfig.ok;
   return (
@@ -101,9 +100,33 @@ const inlineStatusMap = QUOTE_STATUSES.reduce((acc, status) => {
 }, {});
 
 const statusColorMap = {
-  considering: colors.accent,
-  booked: colors.success,
-  declined: '#B64C40',
+  considering: '#8D8076',
+  booked: '#6F9C8F',
+  declined: '#B98278',
+};
+
+const paymentTypeLabels = {
+  deposit: 'Deposit',
+  instalment: 'Instalment',
+  final: 'Final Balance',
+  other: 'Other',
+};
+
+const formatDateDisplay = (value) => {
+  if (!value) return 'No due date yet';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return 'No due date yet';
+  }
+  try {
+    return date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch (error) {
+    return 'No due date yet';
+  }
 };
 
 const QuoteInlineCard = ({ vendorName, amount, categoryLabel, status, onPress }) => {
@@ -125,8 +148,7 @@ const QuoteInlineCard = ({ vendorName, amount, categoryLabel, status, onPress })
 const CategoryCard = ({ category, allocation, overBudget, onPress }) => {
   const vendorName = category.vendorName?.trim();
   const allocationValue = Number(allocation) || 0;
-  const hasDetails = Boolean(vendorName || allocationValue > 0);
-  const status = overBudget ? 'over' : hasDetails ? 'ok' : 'new';
+  const status = overBudget ? 'over' : 'ok';
   return (
     <Pressable style={styles.categoryCard} onPress={onPress} hitSlop={6}>
       <View style={styles.cardHeaderRow}>
@@ -152,20 +174,56 @@ const CategoryCard = ({ category, allocation, overBudget, onPress }) => {
 };
 
 const BudgetContextBar = ({ allocated, remaining }) => {
+  const remainingValue = Number(remaining) || 0;
+  const overBudget = remainingValue < 0;
   const cards = [
     { label: 'Allocated', icon: 'layers-outline', value: allocated },
     { label: 'Spent', icon: 'wallet-outline', value: 0 },
-    { label: 'Remaining', icon: 'sparkles-outline', value: remaining },
+    {
+      label: 'Remaining',
+      icon: 'sparkles-outline',
+      value: remainingValue,
+      highlight: true,
+      tone: overBudget ? 'over' : 'ok',
+      message: overBudget
+        ? `You’re currently ${formatCurrency(Math.abs(remainingValue))} over your starting budget.`
+        : 'Available to allocate',
+    },
   ];
   return (
     <View style={styles.contextBar}>
       {cards.map((card) => (
-        <View key={card.label} style={styles.contextCard}>
+        <View
+          key={card.label}
+          style={[
+            styles.contextCard,
+            card.highlight && styles.contextCardHighlight,
+            card.tone === 'over' && styles.contextCardOver,
+          ]}
+        >
           <View style={styles.contextIcon}>
             <Ionicons name={card.icon} size={16} color={colors.accent} />
           </View>
           <Text style={styles.contextLabel}>{card.label}</Text>
-          <Text style={styles.contextValue}>{formatCurrency(card.value)}</Text>
+          <Text
+            style={[
+              styles.contextValue,
+              card.highlight && styles.contextValueHighlight,
+              card.tone === 'over' && styles.contextValueOver,
+            ]}
+          >
+            {formatCurrency(card.value)}
+          </Text>
+          {card.message ? (
+            <Text
+              style={[
+                styles.contextMessage,
+                card.tone === 'over' && styles.contextMessageOver,
+              ]}
+            >
+              {card.message}
+            </Text>
+          ) : null}
         </View>
       ))}
     </View>
@@ -173,13 +231,19 @@ const BudgetContextBar = ({ allocated, remaining }) => {
 };
 
 export default function BudgetBuddyScreen({ navigation }) {
-  const [state, setState] = useState({ totalBudget: null, categories: [], allocations: {}, quotes: [] });
+  const [state, setState] = useState({
+    totalBudget: null,
+    categories: [],
+    allocations: {},
+    quotes: [],
+    payments: [],
+  });
   const [loading, setLoading] = useState(true);
   const [showBudgetModal, setShowBudgetModal] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [sectionVisibility, setSectionVisibility] = useState({
-    categories: false,
+    categories: true,
     quotes: false,
     payments: false,
   });
@@ -196,6 +260,7 @@ export default function BudgetBuddyScreen({ navigation }) {
         categories: stored.categories ?? [],
         allocations: stored.allocations ?? {},
         quotes: stored.quotes ?? [],
+        payments: stored.payments ?? [],
       });
       if (showLoader) {
         setLoading(false);
@@ -219,6 +284,7 @@ export default function BudgetBuddyScreen({ navigation }) {
     [state.categories],
   );
   const quotes = useMemo(() => state.quotes || [], [state.quotes]);
+  const payments = useMemo(() => state.payments || [], [state.payments]);
   const categoryLookup = useMemo(() => {
     const lookup = {};
     (state.categories || []).forEach((cat) => {
@@ -233,6 +299,15 @@ export default function BudgetBuddyScreen({ navigation }) {
     }, 0);
   }, [visibleCategories, allocations]);
   const remainingTotal = (state.totalBudget || 0) - allocatedTotal;
+  const upcomingPayments = useMemo(() => {
+    if (!payments.length) return [];
+    const sorted = [...payments].sort((a, b) => {
+      const first = new Date(a.dueDate || 0).getTime();
+      const second = new Date(b.dueDate || 0).getTime();
+      return first - second;
+    });
+    return sorted.slice(0, 3);
+  }, [payments]);
 
   const handleSaveBudget = (amount) => {
     const next = { ...state, totalBudget: amount };
@@ -290,10 +365,6 @@ export default function BudgetBuddyScreen({ navigation }) {
     });
   };
 
-  const handlePlaceholder = (label) => {
-    Alert.alert('Coming soon', `${label} will live here soon.`);
-  };
-
   const handleOpenQuotes = () => {
     setEditingQuote(null);
     setQuoteModalVisible(true);
@@ -328,6 +399,7 @@ export default function BudgetBuddyScreen({ navigation }) {
       categories: next.categories ?? [],
       allocations: next.allocations ?? {},
       quotes: next.quotes ?? [],
+      payments: next.payments ?? [],
     });
   };
 
@@ -356,6 +428,7 @@ export default function BudgetBuddyScreen({ navigation }) {
         categories: nextState.categories ?? prev.categories,
         allocations: nextState.allocations ?? prev.allocations,
         quotes: nextState.quotes ?? prev.quotes,
+        payments: nextState.payments ?? prev.payments,
       }));
       setQuoteModalVisible(false);
       setEditingQuote(null);
@@ -378,6 +451,7 @@ export default function BudgetBuddyScreen({ navigation }) {
               categories: nextState.categories ?? prev.categories,
               allocations: nextState.allocations ?? prev.allocations,
               quotes: nextState.quotes ?? prev.quotes,
+              payments: nextState.payments ?? prev.payments,
             }));
             setQuoteModalVisible(false);
             setEditingQuote(null);
@@ -385,6 +459,19 @@ export default function BudgetBuddyScreen({ navigation }) {
         },
       },
     ]);
+  };
+
+  const handleOpenPayments = () => {
+    navigation?.navigate?.('PaymentSchedule');
+  };
+
+  const handleAddPayment = () => {
+    navigation?.navigate?.('AddPayment');
+  };
+
+  const handlePreviewPayment = (paymentId) => {
+    if (!paymentId) return;
+    navigation?.navigate?.('PaymentDetail', { paymentId });
   };
 
   const toggleSection = (key) => {
@@ -405,7 +492,7 @@ export default function BudgetBuddyScreen({ navigation }) {
     return (
       <Screen scroll>
         <View style={styles.container}>
-          <View style={styles.heroCard}>
+          <View style={[styles.heroCard, showBudgetModal && styles.heroCardDimmed]}>
             <Text style={styles.heroTitle}>Your Wedding Budget Starts Here</Text>
             <Text style={styles.heroSubtitle}>
               Add your total budget and we’ll help you organise it calmly.
@@ -450,37 +537,40 @@ export default function BudgetBuddyScreen({ navigation }) {
           <Text style={styles.totalHelper}>Budgets change. That’s normal.</Text>
         </View>
         <BudgetContextBar allocated={allocatedTotal} remaining={remainingTotal} />
-        <Text style={[styles.contextHelper, { marginTop: spacing.sm }]}>
-          This is just an overview — you can change things anytime.
-        </Text>
 
-        <View style={styles.sectionCard}>
-          <Pressable style={styles.sectionHeaderRow} onPress={() => toggleSection('categories')}>
-            <View style={styles.headerLeft}>
+        <View style={[styles.sectionCard, styles.sectionCardFirst]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderTexts}>
               <Text style={styles.sectionTitle}>Categories</Text>
+              <Text style={styles.sectionSubtitle}>Where each part of your budget will live.</Text>
+            </View>
+            <Pressable style={styles.collapseButton} onPress={() => toggleSection('categories')}>
               <Ionicons
                 name={sectionVisibility.categories ? 'chevron-up' : 'chevron-down'}
                 size={18}
                 color={colors.textMuted}
               />
-            </View>
+            </Pressable>
             <View style={styles.sectionActions}>
               <Pressable style={styles.addInlineButton} onPress={() => setPickerVisible(true)}>
                 <Ionicons name="add" size={16} color={colors.accent} />
-                <Text style={styles.addInlineText}>Add</Text>
+                <Text style={styles.addInlineText}>Add category</Text>
               </Pressable>
             </View>
-          </Pressable>
+          </View>
+          <Text style={styles.sectionHint}>
+            {visibleCategories.length === 0
+              ? 'Add categories to start shaping where your money goes.'
+              : `${visibleCategories.length} categories in motion — edit anytime.`}
+          </Text>
           {feedbackMessage ? (
-            <View style={styles.feedbackBanner}>
-              <View style={styles.feedbackBannerLeft}>
-                <Ionicons name="checkmark-circle" size={16} color={colors.success} />
-                <Text style={styles.feedbackText}>{feedbackMessage}</Text>
-              </View>
-              <Pressable onPress={() => setFeedbackMessage('')} hitSlop={8}>
-                <Ionicons name="close" size={16} color={colors.textMuted} />
-              </Pressable>
-            </View>
+            <Pressable
+              style={styles.feedbackBanner}
+              onPress={() => setFeedbackMessage('')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.feedbackText}>{feedbackMessage}</Text>
+            </Pressable>
           ) : null}
           {sectionVisibility.categories ? (
             visibleCategories.length === 0 ? (
@@ -510,20 +600,28 @@ export default function BudgetBuddyScreen({ navigation }) {
         </View>
 
         <View style={styles.sectionCard}>
-          <Pressable style={styles.sectionHeaderRow} onPress={() => toggleSection('quotes')}>
-            <View style={styles.headerLeft}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderTexts}>
               <Text style={styles.sectionTitle}>Quotes & Estimates</Text>
+              <Text style={styles.sectionSubtitle}>Calm snapshots of every option.</Text>
+            </View>
+            <Pressable style={styles.collapseButton} onPress={() => toggleSection('quotes')}>
               <Ionicons
                 name={sectionVisibility.quotes ? 'chevron-up' : 'chevron-down'}
                 size={18}
                 color={colors.textMuted}
               />
-            </View>
+            </Pressable>
             <Pressable style={styles.addInlineButton} onPress={handleOpenQuotes}>
               <Ionicons name="add" size={16} color={colors.accent} />
-              <Text style={styles.addInlineText}>Add</Text>
+              <Text style={styles.addInlineText}>Add quote</Text>
             </Pressable>
-          </Pressable>
+          </View>
+          <Text style={styles.sectionHint}>
+            {quotes.length === 0
+              ? 'Save calm snapshots of vendor quotes when they arrive.'
+              : `${quotes.length} quotes saved — review or update whenever you like.`}
+          </Text>
           {sectionVisibility.quotes ? (
             <>
               <Text style={styles.sectionBody}>
@@ -549,21 +647,87 @@ export default function BudgetBuddyScreen({ navigation }) {
           ) : null}
         </View>
 
-        <View style={styles.sectionCard}>
-          <Pressable style={styles.sectionHeaderRow} onPress={() => toggleSection('payments')}>
-            <View style={styles.headerLeft}>
+        <View style={[styles.sectionCard, styles.sectionCardLast]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={styles.sectionHeaderTexts}>
               <Text style={styles.sectionTitle}>Payment Schedule</Text>
+              <Text style={styles.sectionSubtitle}>Every deposit and final balance, in one calm list.</Text>
+            </View>
+            <Pressable style={styles.collapseButton} onPress={() => toggleSection('payments')}>
               <Ionicons
                 name={sectionVisibility.payments ? 'chevron-up' : 'chevron-down'}
                 size={18}
                 color={colors.textMuted}
               />
-            </View>
-            <Pressable onPress={() => handlePlaceholder('Payment Schedule')}>
-              <Text style={styles.linkText}>Add Payment</Text>
             </Pressable>
-          </Pressable>
-          {sectionVisibility.payments ? <EmptyLine copy="No upcoming payments." /> : null}
+            <Pressable style={styles.addInlineButton} onPress={handleAddPayment}>
+              <Ionicons name="add" size={16} color={colors.accent} />
+              <Text style={styles.addInlineText}>Add payment</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.sectionHint}>
+            {payments.length === 0
+              ? 'Log deposits or instalments so nothing lives in your head.'
+              : `${payments.length} payments tracked — stay ahead calmly.`}
+          </Text>
+          {sectionVisibility.payments ? (
+            <>
+              <Text style={styles.sectionBody}>
+                Log deposits, instalments, and final balances without overwhelm.
+              </Text>
+              {payments.length === 0 ? (
+                <Text style={styles.noCategoriesCopy}>
+                  No payments yet. Start one when you feel ready.
+                </Text>
+              ) : (
+                <View style={styles.paymentPreviewList}>
+                  {upcomingPayments.map((payment) => (
+                    <Pressable
+                      key={payment.id}
+                      style={styles.paymentPreviewCard}
+                      onPress={() => handlePreviewPayment(payment.id)}
+                    >
+                      <View style={styles.paymentPreviewRow}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.paymentVendor}>
+                            {payment.vendorName || 'Untitled payment'}
+                          </Text>
+                          <Text style={styles.paymentType}>
+                            {paymentTypeLabels[payment.paymentType] || 'Payment'}
+                          </Text>
+                        </View>
+                        <Text style={styles.paymentAmount}>
+                          {formatCurrency(payment.amount)}
+                        </Text>
+                      </View>
+                      <View style={styles.paymentMetaRow}>
+                        <Text style={styles.paymentMeta}>
+                          Due {formatDateDisplay(payment.dueDate)}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.paymentStatus,
+                            payment.status === 'paid' && styles.paymentStatusPaid,
+                          ]}
+                        >
+                          {payment.status === 'paid' ? 'PAID' : 'PENDING'}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                  {payments.length > upcomingPayments.length ? (
+                    <Pressable style={styles.viewAllButton} onPress={handleOpenPayments}>
+                      <Text style={styles.viewAllText}>View all payments</Text>
+                      <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              )}
+              <Pressable style={styles.inlineLinkButton} onPress={handleOpenPayments}>
+                <Text style={styles.inlineLinkText}>Open Payment Schedule</Text>
+              </Pressable>
+            </>
+          ) : null}
         </View>
       </View>
 
@@ -604,12 +768,6 @@ const DisabledSection = ({ title, copy }) => (
   </View>
 );
 
-const EmptyLine = ({ copy }) => (
-  <View style={styles.emptyLine}>
-    <Text style={styles.emptyText}>{copy}</Text>
-  </View>
-);
-
 const styles = StyleSheet.create({
   container: {
     paddingBottom: spacing.xl,
@@ -618,8 +776,19 @@ const styles = StyleSheet.create({
   heroCard: {
     backgroundColor: '#FFF6F1',
     borderRadius: radius.lg,
-    padding: spacing.xl,
+    paddingVertical: spacing.xl * 1.2,
+    paddingHorizontal: spacing.xl,
     gap: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.xl * 1.6,
+    shadowColor: 'rgba(0,0,0,0.08)',
+    shadowOpacity: 1,
+    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 14 },
+    elevation: 4,
+  },
+  heroCardDimmed: {
+    opacity: 0.55,
   },
   heroTitle: {
     fontSize: 26,
@@ -666,10 +835,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
+    borderWidth: 1,
+    borderColor: '#F3ECE7',
+  },
+  sectionCardFirst: {
+    marginTop: spacing.lg,
+  },
+  sectionCardLast: {
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'PlayfairDisplay_600SemiBold',
+    fontSize: 20,
+    fontFamily: 'PlayfairDisplay_700Bold',
     color: colors.text,
   },
   sectionLabel: {
@@ -680,16 +857,31 @@ const styles = StyleSheet.create({
   },
   sectionHeaderRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.md,
   },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+  sectionHeaderTexts: {
+    flex: 1,
+    gap: spacing.xs / 2,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontFamily: 'Outfit_400Regular',
+  },
+  collapseButton: {
+    padding: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: '#F7F1ED',
   },
   sectionBody: {
     fontSize: 14,
+    color: colors.textMuted,
+    fontFamily: 'Outfit_400Regular',
+  },
+  sectionHint: {
+    marginTop: spacing.xs,
+    fontSize: 13,
     color: colors.textMuted,
     fontFamily: 'Outfit_400Regular',
   },
@@ -716,26 +908,85 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontFamily: 'Outfit_600SemiBold',
   },
-  feedbackBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F3F8F5',
+  paymentPreviewList: {
+    gap: spacing.sm,
+  },
+  paymentPreviewCard: {
+    borderWidth: 1,
+    borderColor: '#F0E7E1',
     borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  paymentPreviewRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  paymentVendor: {
+    fontFamily: 'Outfit_600SemiBold',
+    color: colors.text,
+    fontSize: 15,
+  },
+  paymentType: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontFamily: 'Outfit_400Regular',
+  },
+  paymentAmount: {
+    fontFamily: 'Outfit_600SemiBold',
+    color: colors.text,
+    fontSize: 15,
+  },
+  paymentMetaRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  paymentMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontFamily: 'Outfit_400Regular',
+  },
+  paymentStatus: {
+    fontSize: 12,
+    color: colors.accent,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  paymentStatusPaid: {
+    color: colors.success,
+  },
+  inlineLinkButton: {
+    alignSelf: 'flex-start',
+  },
+  inlineLinkText: {
+    color: colors.accent,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  viewAllButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: spacing.xs,
   },
-  feedbackBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    flex: 1,
-    marginRight: spacing.sm,
+  viewAllText: {
+    color: colors.accent,
+    fontFamily: 'Outfit_500Medium',
+  },
+  feedbackBanner: {
+    marginTop: spacing.sm,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: '#FFF3ED',
+    borderWidth: 1,
+    borderColor: '#F5D7CA',
   },
   feedbackText: {
     fontSize: 13,
     color: colors.text,
-    fontFamily: 'Outfit_500Medium',
+    fontFamily: 'Outfit_400Regular',
   },
   dropdownRow: {
     flexDirection: 'row',
@@ -925,11 +1176,13 @@ const styles = StyleSheet.create({
   },
   contextBar: {
     flexDirection: 'row',
-    gap: spacing.sm,
-    backgroundColor: '#FFF6F1',
-    borderRadius: radius.lg,
+    gap: spacing.xs,
+    backgroundColor: '#FFF3ED',
+    borderRadius: radius.xl,
     padding: spacing.md,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: '#FBE0D4',
   },
   contextCard: {
     flex: 1,
@@ -941,6 +1194,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
+  },
+  contextCardHighlight: {
+    backgroundColor: '#FFF8F5',
+  },
+  contextCardOver: {
+    backgroundColor: '#FFF1EE',
   },
   contextIcon: {
     width: 28,
@@ -962,6 +1221,21 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: 'PlayfairDisplay_700Bold',
   },
+  contextValueHighlight: {
+    fontSize: 22,
+    color: colors.accent,
+  },
+  contextValueOver: {
+    color: '#B64C40',
+  },
+  contextMessage: {
+    fontSize: 12,
+    fontFamily: 'Outfit_400Regular',
+    color: colors.textMuted,
+  },
+  contextMessageOver: {
+    color: '#B64C40',
+  },
   contextHelper: {
     marginTop: spacing.xs,
     marginBottom: spacing.sm,
@@ -976,13 +1250,14 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   categoryCardList: {
-    gap: spacing.lg,
+    gap: spacing.xl,
   },
   categoryCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.md,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.lg,
     shadowColor: 'rgba(0,0,0,0.03)',
     shadowOpacity: 1,
     shadowRadius: 14,
@@ -1061,17 +1336,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-  },
-  emptyLine: {
-    paddingVertical: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: '#F8F6F4',
-    alignItems: 'flex-start',
-    paddingHorizontal: spacing.md,
-  },
-  emptyText: {
-    color: colors.textMuted,
-    fontFamily: 'Outfit_400Regular',
   },
   loadingWrap: {
     flex: 1,
