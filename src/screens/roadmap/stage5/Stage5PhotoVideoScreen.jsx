@@ -26,7 +26,7 @@ const KEEP_POINTS = [
 ];
 
 export default function Stage5PhotoVideoScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage5Style');
   const handleOpenPdf = () => console.log('Open shot list PDF');
 
   return (

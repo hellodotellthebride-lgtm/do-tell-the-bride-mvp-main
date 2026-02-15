@@ -24,7 +24,7 @@ const WEATHER_POINTS = [
 ];
 
 export default function Stage2LogisticsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage2EarlyDecisions');
   const handleAddNotes = () => navigation?.navigate?.('WeddingHub');
 
   return (

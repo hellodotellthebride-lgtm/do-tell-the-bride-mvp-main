@@ -29,7 +29,7 @@ const CHECK_POINTS = [
 ];
 
 export default function Stage7FinalWeekChecklistScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
   const handleOpenPdf = () => console.log('Open Final Week Checklist PDF');
   const handleRainPlan = () => navigation?.navigate?.('Stage7RainPlan');
 

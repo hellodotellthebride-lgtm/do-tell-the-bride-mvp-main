@@ -21,7 +21,7 @@ const DECIDE_POINTS = [
 ];
 
 export default function Stage8MemoriesScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage8WrapUp');
   const handleSaveLater = () => console.log('Save memories plan for later');
 
   return (

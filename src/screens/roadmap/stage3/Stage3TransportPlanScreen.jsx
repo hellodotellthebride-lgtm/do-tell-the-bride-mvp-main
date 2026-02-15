@@ -37,13 +37,7 @@ const SECTIONS = [
 ];
 
 export default function Stage3TransportPlanScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
   const handleSave = () => console.log('save transport plan');
 
   return (

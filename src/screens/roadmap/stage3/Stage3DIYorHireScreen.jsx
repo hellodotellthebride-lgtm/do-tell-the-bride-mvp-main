@@ -24,13 +24,7 @@ const COST_POINTS = [
 ];
 
 export default function Stage3DIYorHireScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
   const openDecisionSheet = () => console.log('Open DIY vs Pro Decision Sheet');
 
   return (

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { getChecklistItems } from './checklists';
 import { loadChecklistState, persistStageChecklist } from './progressStorage';
 
@@ -12,7 +13,7 @@ export default function useStageChecklist(stageId) {
   const items = getChecklistItems(stageId);
   const [checkedMap, setCheckedMap] = useState(() => buildInitialMap(items));
 
-  useEffect(() => {
+  const hydrate = useCallback(() => {
     let isMounted = true;
     loadChecklistState().then((state) => {
       if (!isMounted) return;
@@ -25,6 +26,8 @@ export default function useStageChecklist(stageId) {
       isMounted = false;
     };
   }, [stageId]);
+
+  useFocusEffect(hydrate);
 
   const toggleItem = useCallback(
     (itemId) => {

@@ -21,7 +21,7 @@ const MOMENT_POINTS = [
 ];
 
 export default function Stage7LettersMomentsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
   const handleCalmCorner = () => console.log('Open Calm Corner');
 
   return (

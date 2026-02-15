@@ -24,13 +24,7 @@ const OFFICIANT_POINTS = [
 ];
 
 export default function Stage3LegalCeremonyScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
   const openGuide = () => console.log('Open Legal & Ceremony Guide');
   const addNotes = () => console.log('Add to Ceremony Notes');
   const saveDetails = () => console.log('Save Officiant Details');

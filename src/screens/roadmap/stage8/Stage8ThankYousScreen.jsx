@@ -20,7 +20,7 @@ const WORDING_POINTS = [
 ];
 
 export default function Stage8ThankYousScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage8WrapUp');
 
   return (
     <StageScreenContainer

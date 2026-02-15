@@ -21,7 +21,7 @@ const HOME_POINTS = [
 ];
 
 export default function Stage7HoneymoonPrepScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
   const handleOpenGuide = () => console.log('Open Honeymoon Prep Guide PDF');
 
   return (

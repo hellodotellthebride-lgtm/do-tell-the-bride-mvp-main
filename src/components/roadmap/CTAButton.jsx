@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
   secondary: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: 'rgba(43,43,43,0.15)',
+    borderColor: roadmapColors.border,
   },
   pressed: {
     opacity: 0.85,

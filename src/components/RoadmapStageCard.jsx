@@ -4,6 +4,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import Chip from './Chip';
 import ProgressPill from './ProgressPill';
 
+const progressLabelFor = (progress) => {
+  if (progress >= 100) return 'Complete';
+  if (progress >= 75) return 'Nearly there';
+  if (progress > 0) return 'In progress';
+  return 'Ready when you are';
+};
+
 const RoadmapStageCard = ({
   stage,
   showProgress = false,
@@ -12,6 +19,7 @@ const RoadmapStageCard = ({
 }) => {
   const hasProgress = showProgress && stage.progress > 0;
   const isComplete = stage.progress >= 100;
+  const progressLabel = progressLabelFor(stage.progress);
 
   return (
     <Pressable
@@ -33,10 +41,10 @@ const RoadmapStageCard = ({
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${stage.progress}%` }]} />
           </View>
-          <ProgressPill label={`${stage.progress}% complete`} />
+          <ProgressPill label={progressLabel} />
         </View>
       ) : (
-        <ProgressPill label="0% complete" />
+        <ProgressPill label={progressLabel} />
       )}
 
       <View style={styles.chipWrap}>
@@ -108,7 +116,7 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#F28F79',
+    backgroundColor: '#FF9B85',
   },
   chipWrap: {
     flexDirection: 'row',

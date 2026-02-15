@@ -16,7 +16,7 @@ const STYLE_POINTS = [
 ];
 
 export default function Stage6RingsJewelleryScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
   const handleOpenPdf = () => console.log('Open Wedding Ring Style Guide PDF');
 
   return (

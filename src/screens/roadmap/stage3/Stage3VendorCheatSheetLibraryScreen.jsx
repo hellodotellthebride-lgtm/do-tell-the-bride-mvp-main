@@ -7,13 +7,7 @@ import { DREAM_TEAM_VENDORS } from './vendorData';
 import { StyleSheet, Text } from 'react-native';
 
 export default function Stage3VendorCheatSheetLibraryScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
   const openVendorDirectory = () => navigation?.navigate?.('WeddingHub');
 
   return (

@@ -20,6 +20,7 @@ import {
   getRecommendation,
 } from './onboardingConcerns';
 import { trackEvent } from './analytics';
+import { colors as themeColors } from './src/theme';
 
 const SCREENS = {
   CONCERNS: 'CONCERNS',
@@ -29,13 +30,13 @@ const SCREENS = {
 };
 
 const colors = {
-  background: '#FBF6F1',
-  text: '#2B2B2B',
-  muted: '#8E867E',
-  subtle: '#B9B2AA',
-  accent: '#FF9B85',
-  outline: '#E7DFD6',
-  card: '#FFFDF9',
+  background: themeColors.background,
+  text: themeColors.text,
+  muted: themeColors.textSecondary,
+  subtle: themeColors.sageGrey,
+  accent: themeColors.primary,
+  outline: themeColors.border,
+  card: themeColors.surface,
 };
 
 export default function OnboardingFlow(props) {

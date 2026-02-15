@@ -36,7 +36,7 @@ const TEARDOWN_POINTS = [
 ];
 
 export default function Stage6DecorPlanScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
   const handleOpenPdf = () => console.log('Open Décor Setup & Teardown Plan PDF');
 
   return (

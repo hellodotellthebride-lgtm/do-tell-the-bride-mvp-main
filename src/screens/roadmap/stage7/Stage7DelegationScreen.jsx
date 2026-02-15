@@ -21,7 +21,7 @@ const EASY_POINTS = [
 ];
 
 export default function Stage7DelegationScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
   const handleOpenSheet = () => console.log('Open Delegation & Handover Sheet');
 
   return (

@@ -26,7 +26,7 @@ const FINAL_POINTS = [
 ];
 
 export default function Stage5WeddingDressScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage5Style');
   const handleSaveIdeas = () => console.log('Save dress ideas + notes');
   const handleTrackBudget = () => navigation?.navigate?.('Budget Buddy');
 

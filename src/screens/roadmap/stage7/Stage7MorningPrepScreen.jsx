@@ -26,7 +26,7 @@ const BOUNDARY_POINTS = [
 ];
 
 export default function Stage7MorningPrepScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
   const handleTimeline = () => console.log('Open Wedding Morning Timeline');
   const handleSelfCare = () => console.log('Open Bride/Groom Self-Care Checklist');
 

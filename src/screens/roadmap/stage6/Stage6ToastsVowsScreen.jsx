@@ -6,8 +6,9 @@ import CTAButton from '../../../components/roadmap/CTAButton';
 import { roadmapColors, roadmapSpacing } from '../../../components/roadmap/tokens';
 
 const VOW_POINTS = [
-  'Write a handful of honest lines — no need for poetry.',
-  'Borrow prompts if you’re stuck (how we met, what I love, what I promise).',
+  'If you’re adding personal words, keep them simple and true — no need for poetry.',
+  'Borrow prompts if you’re stuck (how we met, what I love, what I’m promising).',
+  'If you’re following a cultural or religious format, align early on what’s fixed vs flexible.',
 ];
 
 const PRACTICE_POINTS = [
@@ -25,18 +26,23 @@ const GUIDELINE_POINTS = [
   'Let speakers know they can ask for help editing.',
 ];
 
+const AVOID_POINTS = [
+  'Skip inside jokes that exclude guests.',
+  'Avoid mentioning exes, money, or anything you’d cringe hearing aloud.',
+];
+
 export default function Stage6ToastsVowsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
-  const handleOpenGuide = () => console.log('Open Wedding Toasts & Vows Guide');
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
+  const handleOpenGuide = () => console.log('Open Ceremony & Speeches Guide');
 
   return (
     <StageScreenContainer
       backLabel="Back to Final Details & Personal Touches"
       onBackPress={handleBack}
-      title="Wedding Toasts & Vows"
-      subtitle="Remove pressure from emotional moments."
+      title="Ceremony & Speeches Guide"
+      subtitle="Structure the words and moments without pressure."
     >
-      <SoftInfoCard title="Write Your Vows Without Overthinking">
+      <SoftInfoCard title="Plan Your Ceremony Words (If You’re Adding Personal Words)">
         <View style={styles.bulletList}>
           {VOW_POINTS.map((point) => (
             <Text key={point} style={styles.bulletText}>
@@ -76,8 +82,18 @@ export default function Stage6ToastsVowsScreen({ navigation }) {
         </View>
       </SoftInfoCard>
 
+      <SoftInfoCard title="What to Avoid (So No One Cringes Later)">
+        <View style={styles.bulletList}>
+          {AVOID_POINTS.map((point) => (
+            <Text key={point} style={styles.bulletText}>
+              • {point}
+            </Text>
+          ))}
+        </View>
+      </SoftInfoCard>
+
       <CTAButton
-        label="Wedding Toasts & Vows Guide"
+        label="Ceremony & Speeches Guide"
         variant="secondary"
         onPress={handleOpenGuide}
         style={styles.outlineButton}

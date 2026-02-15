@@ -21,7 +21,7 @@ const DECISION_POINTS = [
 ];
 
 export default function Stage7RainPlanScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
   const handleOpenChecklist = () => console.log('Open Rain Plan Checklist');
 
   return (

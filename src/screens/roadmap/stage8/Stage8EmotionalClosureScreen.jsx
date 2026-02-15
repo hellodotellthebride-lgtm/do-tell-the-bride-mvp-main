@@ -16,7 +16,7 @@ const CAPTURE_POINTS = [
 ];
 
 export default function Stage8EmotionalClosureScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage8WrapUp');
   const handleSaveNotes = () => console.log('Add to Notes for emotional closure');
 
   return (

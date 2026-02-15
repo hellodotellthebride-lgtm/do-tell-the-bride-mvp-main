@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SafeAreaView,
   ScrollView,
@@ -7,18 +7,45 @@ import {
   View,
   Pressable,
   Alert,
+  Animated,
+  Easing,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import RoadmapStageCard from '../components/RoadmapStageCard';
+import { LinearGradient } from 'expo-linear-gradient';
+import RoadmapPaceCard from '../components/roadmap/RoadmapPaceCard';
+import RecommendedNextStepCard from '../components/roadmap/RecommendedNextStepCard';
+import StageCard from '../components/roadmap/StageCard';
+import IvyHelpFab from '../components/ui/IvyHelpFab';
 import { useFocusEffect } from '@react-navigation/native';
+import { colors as themeColors } from '../theme';
 import {
   computeStageProgress,
   computeOverallProgress,
   loadChecklistState,
 } from '../roadmap/progressStorage';
+import { getChecklistItems } from '../roadmap/checklists';
 
-const WARM_BACKGROUND = '#FDFBF8';
-const PEACH_TINT = 'rgba(255,155,133,0.12)';
+const COLORS = {
+  accent: themeColors.primary,
+  accentDark: themeColors.primary,
+  card: themeColors.surface,
+  mutedText: themeColors.textSecondary,
+  text: themeColors.text,
+  divider: themeColors.border,
+};
+
+const GRADIENT_COLORS = [themeColors.muted, themeColors.background, themeColors.background];
+
+const STAGE_ROUTES = {
+  'stage-1': 'Stage1Overview',
+  'stage-2': 'Stage2EarlyDecisions',
+  'stage-3': 'Stage3DreamTeam',
+  'stage-4': 'Stage4GuestsInvitations',
+  'stage-5': 'Stage5Style',
+  'stage-6': 'Stage6FinalDetails',
+  'stage-7': 'Stage7WeddingWeek',
+  'stage-8': 'Stage8WrapUp',
+};
 
 const STAGE_BASE = [
   {
@@ -134,6 +161,8 @@ const mapStageProgress = (stage, checklistState) => {
   return {
     ...stage,
     progress: progress.percent,
+    complete: progress.complete,
+    total: progress.total,
     chips: stage.chips.map((chip, chipIndex) => ({
       ...chip,
       done: chipIndex < chipDoneCount,
@@ -143,6 +172,7 @@ const mapStageProgress = (stage, checklistState) => {
 
 const WeddingRoadmapScreen = ({ navigation }) => {
   const [checklistState, setChecklistState] = useState({});
+  const enterAnim = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -158,6 +188,15 @@ const WeddingRoadmapScreen = ({ navigation }) => {
     }, []),
   );
 
+  useEffect(() => {
+    Animated.timing(enterAnim, {
+      toValue: 1,
+      duration: 400,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [enterAnim]);
+
   const stages = useMemo(
     () => STAGE_BASE.map((stage) => mapStageProgress(stage, checklistState)),
     [checklistState],
@@ -168,73 +207,52 @@ const WeddingRoadmapScreen = ({ navigation }) => {
     [checklistState],
   );
 
+  const globalNextStep = useMemo(() => {
+    for (const stage of STAGE_BASE) {
+      const stageMap = checklistState?.[stage.id] ?? {};
+      const items = getChecklistItems(stage.id);
+      const nextItem = items.find((item) => !stageMap?.[item.id]);
+      if (nextItem) {
+        return {
+          stageId: stage.id,
+          stageNumber: stage.stageNumber,
+          itemId: nextItem.id,
+          title: nextItem.label,
+          description: nextItem.description,
+        };
+      }
+    }
+    return null;
+  }, [checklistState]);
+
+  const currentStageNumber = globalNextStep?.stageNumber ?? STAGE_BASE.length;
+  const totalStages = STAGE_BASE.length;
+
+  const paceStatusLabel = useMemo(() => {
+    if (overallProgress >= 100) return 'Complete';
+    if (overallProgress > 0) return 'In progress';
+    return 'Ready when you are';
+  }, [overallProgress]);
+
+  const navigateToStage = useCallback(
+    (stageId, params) => {
+      const routeName = STAGE_ROUTES[stageId];
+      if (routeName) {
+        navigation?.navigate?.(routeName, params);
+        return;
+      }
+      Alert.alert('Coming soon', 'This stage will unlock soon.');
+    },
+    [navigation],
+  );
+
   const handleStagePress = (stage) => {
-    if (stage.id === 'stage-1') {
-      navigation?.navigate?.('Stage1Overview');
-      return;
-    }
-    if (stage.id === 'stage-2') {
-      navigation?.navigate?.('Stage2EarlyDecisions');
-      return;
-    }
-    if (stage.id === 'stage-3') {
-      navigation?.navigate?.('Stage3DreamTeam');
-      return;
-    }
-    if (stage.id === 'stage-4') {
-      navigation?.navigate?.('Stage4GuestsInvitations');
-      return;
-    }
-    if (stage.id === 'stage-5') {
-      navigation?.navigate?.('Stage5Style');
-      return;
-    }
-    if (stage.id === 'stage-6') {
-      navigation?.navigate?.('Stage6FinalDetails');
-      return;
-    }
-    if (stage.id === 'stage-7') {
-      navigation?.navigate?.('Stage7WeddingWeek');
-      return;
-    }
-    if (stage.id === 'stage-8') {
-      navigation?.navigate?.('Stage8WrapUp');
-      return;
-    }
-    if (stage.id === 'stage-8') {
-      navigation?.navigate?.('Stage8WrapUp');
-      return;
-    }
-    if (stage.id === 'stage-7') {
-      navigation?.navigate?.('Stage7WeddingWeek');
-      return;
-    }
-    if (stage.id === 'stage-6') {
-      navigation?.navigate?.('Stage6FinalDetails');
-      return;
-    }
-    if (stage.id === 'stage-5') {
-      navigation?.navigate?.('Stage5Style');
-      return;
-    }
-    Alert.alert('Coming soon', 'This stage will unlock soon.');
+    navigateToStage(stage.id);
   };
 
   const handleChipPress = (stage, chip) => {
-    if (stage.id === 'stage-1') {
-      navigation?.navigate?.('Stage1Overview');
-      return;
-    }
-    if (stage.id === 'stage-2') {
-      navigation?.navigate?.('Stage2EarlyDecisions');
-      return;
-    }
-    if (stage.id === 'stage-3') {
-      navigation?.navigate?.('Stage3DreamTeam');
-      return;
-    }
-    if (stage.id === 'stage-4') {
-      navigation?.navigate?.('Stage4GuestsInvitations');
+    if (stage.id === 'stage-1' || stage.id === 'stage-2' || stage.id === 'stage-3' || stage.id === 'stage-4') {
+      navigateToStage(stage.id);
       return;
     }
     Alert.alert('Resources coming soon', 'We’re still building this guide.');
@@ -249,145 +267,188 @@ const WeddingRoadmapScreen = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <Pressable hitSlop={8} onPress={handleBack} style={styles.backRow}>
-          <Ionicons name="chevron-back" size={18} color="#6F5B55" />
-          <Text style={styles.backText}>Back</Text>
-        </Pressable>
+    <LinearGradient colors={GRADIENT_COLORS} style={styles.gradient}>
+      <View pointerEvents="none" style={styles.glowTopRight} />
+      <View pointerEvents="none" style={styles.glowMid} />
 
-        <Text style={styles.screenTitle}>Your Wedding Roadmap</Text>
-        <Text style={styles.screenSubtitle}>
-          Seven calm stages to guide you from first decision to wedding day confidence.
-        </Text>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          <Animated.View
+            style={{
+              opacity: enterAnim,
+              transform: [
+                {
+                  translateY: enterAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                  }),
+                },
+              ],
+            }}
+          >
+            <Pressable hitSlop={10} onPress={handleBack} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={18} color={COLORS.text} />
+            </Pressable>
 
-        <View style={styles.overallCard}>
-          <View style={styles.overallRow}>
-            <Text style={styles.overallLabel}>Your Overall Progress</Text>
-            <Text style={styles.overallValue}>
-              {overallProgress}% complete
+            <Text style={styles.screenTitle}>Your Wedding Roadmap</Text>
+            <Text style={styles.screenSubtitle}>
+              {totalStages} calm stages guiding you from first decision to wedding day confidence.
             </Text>
-          </View>
-          {overallProgress > 0 && (
-            <View style={styles.overallTrack}>
-              <View style={[styles.overallFill, { width: `${overallProgress}%` }]} />
-            </View>
-          )}
-        </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Planning Stages</Text>
-        </View>
+            <View style={styles.sectionSpacingLg} />
 
-        {stages.map((stage) => (
-          <RoadmapStageCard
-            key={stage.id}
-            stage={stage}
-            showProgress
-            onPress={() => handleStagePress(stage)}
-            onChipPress={(chip) => handleChipPress(stage, chip)}
-          />
-        ))}
+            <RoadmapPaceCard
+              statusLabel={paceStatusLabel}
+              progressPercent={overallProgress}
+              stageLine={
+                overallProgress >= 100
+                  ? 'You’ve completed your roadmap — future you is grateful.'
+                  : `You’re currently in Stage ${currentStageNumber} of ${totalStages}.`
+              }
+            />
 
-        <Pressable style={styles.resourcesCard} onPress={handleResourcesPress}>
-          <View style={styles.resourcesHeader}>
-            <Text style={styles.resourcesTitle}>Planning Resources & Guides</Text>
-            <Ionicons name="chevron-forward" size={18} color="#B7A7A0" />
-          </View>
-          <Text style={styles.resourcesBody}>
-            Access all your Do Tell The Bride printable PDFs and downloads in one calm space.
-          </Text>
-          <Text style={styles.resourcesQuote}>
-            “This? Not archived — we’re right there with you.”
-          </Text>
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+            <View style={styles.sectionSpacingMd} />
+
+            <RecommendedNextStepCard
+              title={globalNextStep ? globalNextStep.title : 'You’re all caught up'}
+              body={
+                globalNextStep?.description ||
+                (globalNextStep
+                  ? 'A small next step to keep your plan moving.'
+                  : 'Everything in your plan is marked complete.')
+              }
+              ctaLabel={globalNextStep ? 'Continue' : 'View stages'}
+              onPress={() => {
+                if (globalNextStep) {
+                  navigateToStage(globalNextStep.stageId, {
+                    autoStart: true,
+                    focusItemId: globalNextStep.itemId,
+                  });
+                  return;
+                }
+                navigateToStage('stage-8');
+              }}
+            />
+
+            <View style={styles.sectionSpacingLg} />
+
+            <Text style={styles.sectionTitle}>PLANNING STAGES</Text>
+
+            <View style={styles.sectionSpacingSm} />
+
+            {stages.map((stage) => (
+              <StageCard
+                key={stage.id}
+                stage={stage}
+                onPress={() => handleStagePress(stage)}
+                onTagPress={(chip) => handleChipPress(stage, chip)}
+              />
+            ))}
+
+            <Pressable style={styles.resourcesCard} onPress={handleResourcesPress}>
+              <View style={styles.resourcesHeader}>
+                <Text style={styles.resourcesTitle}>Planning Resources & Guides</Text>
+                <Ionicons name="chevron-forward" size={18} color={COLORS.mutedText} />
+              </View>
+              <Text style={styles.resourcesBody}>
+                Access all your Do Tell The Bride printable PDFs and downloads in one calm space.
+              </Text>
+              <Text style={styles.resourcesQuote}>
+                “This? Not archived — we’re right there with you.”
+              </Text>
+            </Pressable>
+          </Animated.View>
+        </ScrollView>
+        <IvyHelpFab insetRight={20} insetBottom={20} />
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
+  glowTopRight: {
+    position: 'absolute',
+    top: -160,
+    right: -140,
+    width: 380,
+    height: 380,
+    borderRadius: 380,
+    backgroundColor: 'rgba(255,155,133,0.18)',
+    opacity: 0.8,
+  },
+  glowMid: {
+    position: 'absolute',
+    top: 220,
+    left: -180,
+    width: 420,
+    height: 420,
+    borderRadius: 420,
+    backgroundColor: 'rgba(255,155,133,0.12)',
+    opacity: 0.7,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: WARM_BACKGROUND,
+    backgroundColor: 'transparent',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 32,
+    paddingTop: 16,
+    paddingBottom: 120,
   },
-  backRow: {
-    flexDirection: 'row',
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 1,
+    borderColor: COLORS.divider,
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  backText: {
-    fontSize: 13,
-    color: '#6F5B55',
-    fontFamily: 'Outfit_500Medium',
-    marginLeft: 2,
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   screenTitle: {
-    fontSize: 32,
-    color: '#2F2925',
+    fontSize: 34,
+    letterSpacing: -0.5,
+    color: COLORS.text,
     fontFamily: 'PlayfairDisplay_700Bold',
     marginBottom: 8,
   },
   screenSubtitle: {
     fontSize: 15,
-    color: '#8C7A72',
+    lineHeight: 22,
+    color: COLORS.mutedText,
     fontFamily: 'Outfit_400Regular',
-    marginBottom: 24,
-  },
-  overallCard: {
-    borderRadius: 24,
-    padding: 18,
-    backgroundColor: PEACH_TINT,
-    marginBottom: 28,
-  },
-  overallRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  overallLabel: {
-    fontSize: 14,
-    color: '#6F5B55',
-    fontFamily: 'Outfit_500Medium',
-  },
-  overallValue: {
-    fontSize: 16,
-    color: '#F05F40',
-    fontFamily: 'Outfit_600SemiBold',
-  },
-  overallTrack: {
-    marginTop: 16,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: 'rgba(0,0,0,0.08)',
-    overflow: 'hidden',
-  },
-  overallFill: {
-    height: '100%',
-    backgroundColor: '#F28F79',
-  },
-  sectionHeader: {
-    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 12,
     letterSpacing: 2,
-    color: '#8F8F8F',
+    color: COLORS.mutedText,
     fontFamily: 'Outfit_600SemiBold',
   },
+  sectionSpacingSm: {
+    height: 8,
+  },
+  sectionSpacingMd: {
+    height: 20,
+  },
+  sectionSpacingLg: {
+    height: 28,
+  },
   resourcesCard: {
-    borderRadius: 24,
-    backgroundColor: PEACH_TINT,
-    padding: 20,
-    marginTop: 16,
+    borderRadius: 28,
+    backgroundColor: COLORS.card,
+    borderWidth: 1,
+    borderColor: COLORS.divider,
+    paddingVertical: 22,
+    paddingHorizontal: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 6,
   },
   resourcesHeader: {
     flexDirection: 'row',
@@ -397,19 +458,20 @@ const styles = StyleSheet.create({
   },
   resourcesTitle: {
     fontSize: 18,
-    color: '#2F2925',
+    color: COLORS.text,
     fontFamily: 'PlayfairDisplay_600SemiBold',
   },
   resourcesBody: {
-    fontSize: 14,
-    color: '#6F5B55',
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.mutedText,
     fontFamily: 'Outfit_400Regular',
     marginBottom: 12,
   },
   resourcesQuote: {
     fontStyle: 'italic',
     fontSize: 13,
-    color: '#8C7A72',
+    color: COLORS.mutedText,
     fontFamily: 'Outfit_400Regular',
   },
 });

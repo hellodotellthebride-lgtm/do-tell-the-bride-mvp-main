@@ -3,6 +3,9 @@ import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View 
 import { useFocusEffect } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Screen from '../components/Screen';
+import Card from '../components/ui/Card';
+import StatCard from '../components/ui/StatCard';
+import SectionHeader from '../components/ui/SectionHeader';
 import { colors, radius, spacing } from '../theme';
 import {
   QUOTE_STATUSES,
@@ -173,59 +176,51 @@ const CategoryCard = ({ category, allocation, overBudget, onPress }) => {
   );
 };
 
-const BudgetContextBar = ({ allocated, remaining }) => {
+const BudgetContextBar = ({ allocated, remaining, onAskIvy }) => {
   const remainingValue = Number(remaining) || 0;
   const overBudget = remainingValue < 0;
+  const showAskIvyNudge = overBudget && typeof onAskIvy === 'function';
   const cards = [
-    { label: 'Allocated', icon: 'layers-outline', value: allocated },
-    { label: 'Spent', icon: 'wallet-outline', value: 0 },
+    { label: 'Allocated', icon: 'layers-outline', value: allocated, message: 'Planned across categories' },
+    { label: 'Spent', icon: 'wallet-outline', value: 0, message: 'Payments logged' },
     {
       label: 'Remaining',
       icon: 'sparkles-outline',
       value: remainingValue,
-      highlight: true,
-      tone: overBudget ? 'over' : 'ok',
+      tone: overBudget ? 'over' : 'highlight',
       message: overBudget
-        ? `You’re currently ${formatCurrency(Math.abs(remainingValue))} over your starting budget.`
+        ? 'Your plan is flexible — we’ll adjust this together.'
         : 'Available to allocate',
     },
   ];
   return (
-    <View style={styles.contextBar}>
-      {cards.map((card) => (
-        <View
-          key={card.label}
-          style={[
-            styles.contextCard,
-            card.highlight && styles.contextCardHighlight,
-            card.tone === 'over' && styles.contextCardOver,
+    <View style={styles.contextWrap}>
+      <View style={styles.statsRow}>
+        {cards.map((card) => (
+          <StatCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            value={formatCurrency(card.value)}
+            message={card.message}
+            tone={card.tone}
+          />
+        ))}
+      </View>
+      {showAskIvyNudge ? (
+        <Pressable
+          onPress={onAskIvy}
+          accessibilityRole="button"
+          accessibilityLabel="Ask Ivy for help balancing your budget"
+          style={({ pressed }) => [
+            styles.ivyNudgeRow,
+            pressed && styles.ivyNudgeRowPressed,
           ]}
         >
-          <View style={styles.contextIcon}>
-            <Ionicons name={card.icon} size={16} color={colors.accent} />
-          </View>
-          <Text style={styles.contextLabel}>{card.label}</Text>
-          <Text
-            style={[
-              styles.contextValue,
-              card.highlight && styles.contextValueHighlight,
-              card.tone === 'over' && styles.contextValueOver,
-            ]}
-          >
-            {formatCurrency(card.value)}
-          </Text>
-          {card.message ? (
-            <Text
-              style={[
-                styles.contextMessage,
-                card.tone === 'over' && styles.contextMessageOver,
-              ]}
-            >
-              {card.message}
-            </Text>
-          ) : null}
-        </View>
-      ))}
+          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.accent} />
+          <Text style={styles.ivyNudgeText}>Want help balancing this? Ask Ivy →</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 };
@@ -520,12 +515,9 @@ export default function BudgetBuddyScreen({ navigation }) {
   return (
     <Screen scroll>
       <View style={styles.container}>
-        <View style={styles.totalCard}>
+        <Card backgroundColor="#FFF6F1" borderColor="#FBE0D4" style={styles.totalCard}>
           <View style={styles.totalHeaderRow}>
-            <View>
-              <Text style={styles.sectionLabel}>TOTAL WEDDING BUDGET</Text>
-              <Text style={styles.totalValue}>{formatCurrency(state.totalBudget)}</Text>
-            </View>
+            <Text style={styles.sectionLabel}>TOTAL WEDDING BUDGET</Text>
             <Pressable
               onPress={() => setShowBudgetModal(true)}
               style={styles.iconButton}
@@ -534,30 +526,26 @@ export default function BudgetBuddyScreen({ navigation }) {
               <Ionicons name="pencil" size={18} color={colors.text} />
             </Pressable>
           </View>
-          <Text style={styles.totalHelper}>Budgets change. That’s normal.</Text>
-        </View>
-        <BudgetContextBar allocated={allocatedTotal} remaining={remainingTotal} />
+          <Text style={styles.totalValue}>{formatCurrency(state.totalBudget)}</Text>
+          <Text style={styles.totalHelper}>You can change this anytime — we’ll keep it calm and clear.</Text>
+        </Card>
+        <BudgetContextBar
+          allocated={allocatedTotal}
+          remaining={remainingTotal}
+          onAskIvy={() => navigation?.navigate?.('AskIvy')}
+        />
 
         <View style={[styles.sectionCard, styles.sectionCardFirst]}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionHeaderTexts}>
-              <Text style={styles.sectionTitle}>Categories</Text>
-              <Text style={styles.sectionSubtitle}>Where each part of your budget will live.</Text>
-            </View>
-            <Pressable style={styles.collapseButton} onPress={() => toggleSection('categories')}>
-              <Ionicons
-                name={sectionVisibility.categories ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={colors.textMuted}
-              />
-            </Pressable>
-            <View style={styles.sectionActions}>
-              <Pressable style={styles.addInlineButton} onPress={() => setPickerVisible(true)}>
-                <Ionicons name="add" size={16} color={colors.accent} />
-                <Text style={styles.addInlineText}>Add category</Text>
-              </Pressable>
-            </View>
-          </View>
+          <SectionHeader
+            title="Categories"
+            subtitle="Where each part of your budget will live."
+            actionLabel="Add category"
+            onActionPress={() => setPickerVisible(true)}
+            expanded={sectionVisibility.categories}
+            onToggleExpand={() => toggleSection('categories')}
+            toggleAccessibilityLabel="Toggle categories"
+            actionAccessibilityLabel="Add category"
+          />
           <Text style={styles.sectionHint}>
             {visibleCategories.length === 0
               ? 'Add categories to start shaping where your money goes.'
@@ -600,23 +588,16 @@ export default function BudgetBuddyScreen({ navigation }) {
         </View>
 
         <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionHeaderTexts}>
-              <Text style={styles.sectionTitle}>Quotes & Estimates</Text>
-              <Text style={styles.sectionSubtitle}>Calm snapshots of every option.</Text>
-            </View>
-            <Pressable style={styles.collapseButton} onPress={() => toggleSection('quotes')}>
-              <Ionicons
-                name={sectionVisibility.quotes ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={colors.textMuted}
-              />
-            </Pressable>
-            <Pressable style={styles.addInlineButton} onPress={handleOpenQuotes}>
-              <Ionicons name="add" size={16} color={colors.accent} />
-              <Text style={styles.addInlineText}>Add quote</Text>
-            </Pressable>
-          </View>
+          <SectionHeader
+            title="Quotes & Estimates"
+            subtitle="Calm snapshots of every option."
+            actionLabel="Add quote"
+            onActionPress={handleOpenQuotes}
+            expanded={sectionVisibility.quotes}
+            onToggleExpand={() => toggleSection('quotes')}
+            toggleAccessibilityLabel="Toggle quotes"
+            actionAccessibilityLabel="Add quote"
+          />
           <Text style={styles.sectionHint}>
             {quotes.length === 0
               ? 'Save calm snapshots of vendor quotes when they arrive.'
@@ -648,23 +629,16 @@ export default function BudgetBuddyScreen({ navigation }) {
         </View>
 
         <View style={[styles.sectionCard, styles.sectionCardLast]}>
-          <View style={styles.sectionHeaderRow}>
-            <View style={styles.sectionHeaderTexts}>
-              <Text style={styles.sectionTitle}>Payment Schedule</Text>
-              <Text style={styles.sectionSubtitle}>Every deposit and final balance, in one calm list.</Text>
-            </View>
-            <Pressable style={styles.collapseButton} onPress={() => toggleSection('payments')}>
-              <Ionicons
-                name={sectionVisibility.payments ? 'chevron-up' : 'chevron-down'}
-                size={18}
-                color={colors.textMuted}
-              />
-            </Pressable>
-            <Pressable style={styles.addInlineButton} onPress={handleAddPayment}>
-              <Ionicons name="add" size={16} color={colors.accent} />
-              <Text style={styles.addInlineText}>Add payment</Text>
-            </Pressable>
-          </View>
+          <SectionHeader
+            title="Payment Schedule"
+            subtitle="Every deposit and final balance, in one calm list."
+            actionLabel="Add payment"
+            onActionPress={handleAddPayment}
+            expanded={sectionVisibility.payments}
+            onToggleExpand={() => toggleSection('payments')}
+            toggleAccessibilityLabel="Toggle payment schedule"
+            actionAccessibilityLabel="Add payment"
+          />
           <Text style={styles.sectionHint}>
             {payments.length === 0
               ? 'Log deposits or instalments so nothing lives in your head.'
@@ -855,25 +829,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: 'Outfit_500Medium',
   },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  sectionHeaderTexts: {
-    flex: 1,
-    gap: spacing.xs / 2,
-  },
-  sectionSubtitle: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontFamily: 'Outfit_400Regular',
-  },
-  collapseButton: {
-    padding: spacing.xs,
-    borderRadius: radius.md,
-    backgroundColor: '#F7F1ED',
-  },
   sectionBody: {
     fontSize: 14,
     color: colors.textMuted,
@@ -885,28 +840,10 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontFamily: 'Outfit_400Regular',
   },
-  sectionActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   linkText: {
     color: colors.accent,
     fontFamily: 'Outfit_500Medium',
     fontSize: 14,
-  },
-  addInlineButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.md,
-    backgroundColor: colors.accentSoft,
-  },
-  addInlineText: {
-    color: colors.accent,
-    fontFamily: 'Outfit_600SemiBold',
   },
   paymentPreviewList: {
     gap: spacing.sm,
@@ -1174,74 +1111,33 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_500Medium',
     color: colors.text,
   },
-  contextBar: {
+  statsRow: {
     flexDirection: 'row',
-    gap: spacing.xs,
-    backgroundColor: '#FFF3ED',
-    borderRadius: radius.xl,
-    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  contextWrap: {
+    marginTop: 0,
+  },
+  ivyNudgeRow: {
     marginTop: spacing.md,
-    borderWidth: 1,
-    borderColor: '#FBE0D4',
-  },
-  contextCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: radius.md,
-    padding: spacing.sm,
-    gap: spacing.xs,
-    shadowColor: 'rgba(0,0,0,0.03)',
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-  },
-  contextCardHighlight: {
-    backgroundColor: '#FFF8F5',
-  },
-  contextCardOver: {
-    backgroundColor: '#FFF1EE',
-  },
-  contextIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.accentSoft,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: 999,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(255,155,133,0.25)',
+    alignSelf: 'flex-start',
   },
-  contextLabel: {
-    fontSize: 11,
-    letterSpacing: 1.2,
-    color: colors.textMuted,
-    fontFamily: 'Outfit_600SemiBold',
-    textTransform: 'uppercase',
+  ivyNudgeRowPressed: {
+    opacity: 0.9,
   },
-  contextValue: {
-    fontSize: 20,
-    color: colors.text,
-    fontFamily: 'PlayfairDisplay_700Bold',
-  },
-  contextValueHighlight: {
-    fontSize: 22,
-    color: colors.accent,
-  },
-  contextValueOver: {
-    color: '#B64C40',
-  },
-  contextMessage: {
-    fontSize: 12,
-    fontFamily: 'Outfit_400Regular',
-    color: colors.textMuted,
-  },
-  contextMessageOver: {
-    color: '#B64C40',
-  },
-  contextHelper: {
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
+  ivyNudgeText: {
     fontSize: 13,
-    color: colors.textMuted,
-    fontFamily: 'Outfit_400Regular',
+    color: colors.text,
+    fontFamily: 'Outfit_500Medium',
   },
   noCategoriesCopy: {
     fontSize: 14,
@@ -1305,9 +1201,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_400Regular',
   },
   totalCard: {
-    backgroundColor: '#FFF6F1',
-    borderRadius: radius.lg,
-    padding: spacing.lg,
     gap: spacing.sm,
   },
   totalHeaderRow: {

@@ -20,7 +20,7 @@ const DECISION_POINTS = [
 ];
 
 export default function Stage7MorningBoundariesScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
 
   return (
     <StageScreenContainer

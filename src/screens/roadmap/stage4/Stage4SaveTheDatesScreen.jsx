@@ -25,7 +25,7 @@ const TEMPLATE_POINTS = [
 ];
 
 export default function Stage4SaveTheDatesScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage4GuestsInvitations');
 
   return (
     <StageScreenContainer

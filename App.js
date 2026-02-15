@@ -6,7 +6,12 @@ import {
   PlayfairDisplay_600SemiBold,
   PlayfairDisplay_700Bold,
 } from '@expo-google-fonts/playfair-display';
-import { Outfit_400Regular, Outfit_500Medium } from '@expo-google-fonts/outfit';
+import {
+  Outfit_400Regular,
+  Outfit_500Medium,
+  Outfit_600SemiBold,
+  Outfit_700Bold,
+} from '@expo-google-fonts/outfit';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -59,6 +64,11 @@ import Stage4ManageRSVPScreen from './src/screens/roadmap/stage4/Stage4ManageRSV
 import Stage4AccessibilityComfortScreen from './src/screens/roadmap/stage4/Stage4AccessibilityComfortScreen';
 import Stage4KidsFamilyScreen from './src/screens/roadmap/stage4/Stage4KidsFamilyScreen';
 import Stage4WeddingWebsiteScreen from './src/screens/roadmap/stage4/Stage4WeddingWebsiteScreen';
+import GuideDetailScreen from './src/screens/roadmap/guides/GuideDetailScreen';
+import RoadmapJourneyScreen from './src/screens/roadmap/RoadmapJourneyScreen';
+import RoadmapTipScreen from './src/screens/roadmap/RoadmapTipScreen';
+import RoadmapCardFlowScreen from './src/screens/roadmap/RoadmapCardFlowScreen';
+import RoadmapCardDeckScreen from './src/screens/roadmap/RoadmapCardDeckScreen';
 import Stage5StyleScreen from './src/screens/roadmap/stage5/Stage5StyleScreen';
 import Stage5WeddingDressScreen from './src/screens/roadmap/stage5/Stage5WeddingDressScreen';
 import Stage5BridesmaidPlannerScreen from './src/screens/roadmap/stage5/Stage5BridesmaidPlannerScreen';
@@ -94,13 +104,19 @@ import Stage8MemoriesScreen from './src/screens/roadmap/stage8/Stage8MemoriesScr
 import Stage8DecorItemsScreen from './src/screens/roadmap/stage8/Stage8DecorItemsScreen';
 import Stage8VendorWrapScreen from './src/screens/roadmap/stage8/Stage8VendorWrapScreen';
 import Stage8EmotionalClosureScreen from './src/screens/roadmap/stage8/Stage8EmotionalClosureScreen';
-import MiniChecklistScreen from './src/screens/roadmap/stage1/MiniChecklistScreen';
 import SetYourBudgetScreen from './src/screens/roadmap/stage1/SetYourBudgetScreen';
 import BudgetBufferScreen from './src/screens/roadmap/stage1/BudgetBufferScreen';
 import DefineWeddingVibeScreen from './src/screens/roadmap/stage1/DefineWeddingVibeScreen';
 import FirstFiveThingsScreen from './src/screens/roadmap/stage1/FirstFiveThingsScreen';
 import MonthByMonthTimelineScreen from './src/screens/roadmap/stage1/MonthByMonthTimelineScreen';
 import NoStressMasterChecklistScreen from './src/screens/roadmap/stage1/NoStressMasterChecklistScreen';
+import CalmCornerScreen from './src/calmCorner/CalmCornerScreen';
+import CalmBreathingScreen from './src/calmCorner/CalmBreathingScreen';
+import CalmMeditationsScreen from './src/calmCorner/CalmMeditationsScreen';
+import CalmScriptsScreen from './src/calmCorner/CalmScriptsScreen';
+import CalmSleepScreen from './src/calmCorner/CalmSleepScreen';
+import AskIvyScreen from './src/askIvy/AskIvyScreen';
+import IvyHelpFab from './src/components/ui/IvyHelpFab';
 import {
   ONBOARDING_CONCERNS,
   getConcernLabel,
@@ -111,15 +127,20 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { ThemeProvider, colors, navigationTheme } from './src/theme';
 
 const Tab = createBottomTabNavigator();
 const BudgetBuddyStack = createNativeStackNavigator();
-const TAB_ACTIVE_COLOR = '#FF9B85';
-const TAB_INACTIVE_COLOR = '#8E8E8E';
+const TAB_ACTIVE_COLOR = colors.primary;
+const TAB_INACTIVE_COLOR = colors.textSecondary;
 const TAB_BAR_STYLE = {
-  backgroundColor: '#FFFFFF',
-  borderTopWidth: 1,
-  borderTopColor: 'rgba(0,0,0,0.06)',
+  backgroundColor: colors.surface,
+  borderTopWidth: 0,
+  shadowColor: '#000',
+  shadowOpacity: 0.06,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: -4 },
+  elevation: 12,
   height: 64,
   paddingBottom: 10,
   paddingTop: 6,
@@ -214,6 +235,8 @@ function AppContent({ navigation, route }) {
     PlayfairDisplay_700Bold,
     Outfit_400Regular,
     Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
   });
   const {
     state: onboardingState,
@@ -725,7 +748,7 @@ const WeddingHubScreen = ({ navigation }) => {
 
         <View style={styles.nextStepCard}>
           <View style={styles.nextStepIcon}>
-            <Ionicons name="map-outline" size={18} color="#f37569" />
+            <Ionicons name="map-outline" size={18} color={TAB_ACTIVE_COLOR} />
           </View>
           <View style={styles.nextStepContent}>
             <View style={styles.nextStepHeader}>
@@ -734,7 +757,7 @@ const WeddingHubScreen = ({ navigation }) => {
                 <Text style={styles.nextStepLinkText}>Continue ›</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.nextStepSubtitle}>0% complete</Text>
+            <Text style={styles.nextStepSubtitle}>Ready when you are.</Text>
             <View style={styles.nextStepTrack}>
               <View style={styles.nextStepFill} />
             </View>
@@ -888,7 +911,7 @@ const WeddingHubScreen = ({ navigation }) => {
                     <Ionicons
                       name={action.icon}
                       size={18}
-                      color={isPrimaryShortcut ? '#F05F40' : '#C3B8B0'}
+                      color={isPrimaryShortcut ? TAB_ACTIVE_COLOR : '#C3B8B0'}
                     />
                   </View>
                   <Text
@@ -905,6 +928,7 @@ const WeddingHubScreen = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+      <IvyHelpFab insetRight={20} insetBottom={20} />
     </SafeAreaView>
   );
 };
@@ -932,7 +956,8 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <OnboardingProvider>
-        <NavigationContainer>
+        <ThemeProvider>
+          <NavigationContainer theme={navigationTheme}>
           <Tab.Navigator
             screenOptions={({ route }) => {
               let iconName = 'ellipse-outline';
@@ -990,6 +1015,36 @@ export default function App() {
               options={HIDDEN_TAB_OPTIONS}
             />
             <Tab.Screen
+              name="CalmCorner"
+              component={CalmCornerScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="CalmBreathing"
+              component={CalmBreathingScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="CalmMeditations"
+              component={CalmMeditationsScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="CalmScripts"
+              component={CalmScriptsScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="CalmSleep"
+              component={CalmSleepScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="AskIvy"
+              component={AskIvyScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
               name="Account"
               component={AccountScreen}
               options={HIDDEN_TAB_OPTIONS}
@@ -997,11 +1052,6 @@ export default function App() {
             <Tab.Screen
               name="Stage1Overview"
               component={Stage1OverviewScreen}
-              options={HIDDEN_TAB_OPTIONS}
-            />
-            <Tab.Screen
-              name="Stage1MiniChecklist"
-              component={MiniChecklistScreen}
               options={HIDDEN_TAB_OPTIONS}
             />
             <Tab.Screen
@@ -1167,6 +1217,31 @@ export default function App() {
             <Tab.Screen
               name="Stage4WeddingWebsite"
               component={Stage4WeddingWebsiteScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="GuideDetail"
+              component={GuideDetailScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="RoadmapJourney"
+              component={RoadmapJourneyScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="RoadmapTip"
+              component={RoadmapTipScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="RoadmapCardDeck"
+              component={RoadmapCardDeckScreen}
+              options={HIDDEN_TAB_OPTIONS}
+            />
+            <Tab.Screen
+              name="RoadmapCardFlow"
+              component={RoadmapCardFlowScreen}
               options={HIDDEN_TAB_OPTIONS}
             />
             <Tab.Screen
@@ -1345,7 +1420,8 @@ export default function App() {
               options={HIDDEN_TAB_OPTIONS}
             />
           </Tab.Navigator>
-        </NavigationContainer>
+          </NavigationContainer>
+        </ThemeProvider>
       </OnboardingProvider>
     </SafeAreaProvider>
   );
@@ -1905,7 +1981,7 @@ const styles = StyleSheet.create({
   heroShell: {
     width: '112%',
     alignSelf: 'center',
-    backgroundColor: '#fffaf5',
+    backgroundColor: colors.muted,
     borderRadius: 42,
     padding: 8,
     shadowColor: '#e0d9d0',
@@ -2109,7 +2185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 18,
     borderRadius: 18,
-    backgroundColor: '#fff1ed',
+    backgroundColor: colors.accentChip,
   },
   mismatchCopy: {
     fontSize: 12,
@@ -2120,26 +2196,26 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#d9d2ca',
+    borderColor: colors.border,
     paddingVertical: 14,
     alignItems: 'center',
   },
   secondaryButtonActive: {
-    borderColor: '#ff9b85',
-    backgroundColor: '#fff1ed',
+    borderColor: TAB_ACTIVE_COLOR,
+    backgroundColor: colors.accentChip,
   },
   secondaryButtonText: {
     fontSize: 15,
-    color: '#8e867e',
+    color: colors.textSecondary,
     fontFamily: 'Outfit_500Medium',
   },
   secondaryButtonTextActive: {
-    color: '#f37569',
+    color: TAB_ACTIVE_COLOR,
   },
   secondaryLinkText: {
     marginTop: 16,
     fontSize: 15,
-    color: '#8e867e',
+    color: colors.textSecondary,
     fontFamily: 'Outfit_500Medium',
     textDecorationLine: 'underline',
   },
@@ -2158,30 +2234,30 @@ const styles = StyleSheet.create({
   },
   pill: {
     borderWidth: 1,
-    borderColor: '#e4d9d1',
+    borderColor: colors.border,
     borderRadius: 18,
     paddingVertical: 14,
     paddingHorizontal: 18,
   },
   pillGridItem: {
     borderWidth: 1,
-    borderColor: '#e4d9d1',
+    borderColor: colors.border,
     borderRadius: 18,
     paddingVertical: 12,
     paddingHorizontal: 14,
     width: '48%',
   },
   pillActive: {
-    borderColor: '#ff9b85',
-    backgroundColor: '#fff1ed',
+    borderColor: TAB_ACTIVE_COLOR,
+    backgroundColor: colors.accentChip,
   },
   pillText: {
     fontSize: 15,
-    color: '#4b403a',
+    color: colors.text,
     fontFamily: 'Outfit_400Regular',
   },
   pillTextActive: {
-    color: '#f37569',
+    color: TAB_ACTIVE_COLOR,
     fontFamily: 'Outfit_500Medium',
   },
   primaryButton: {
@@ -2189,8 +2265,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingVertical: 18,
     alignItems: 'center',
-    backgroundColor: '#ff9b85',
-    shadowColor: '#ff9b85',
+    backgroundColor: TAB_ACTIVE_COLOR,
+    shadowColor: TAB_ACTIVE_COLOR,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 18,
@@ -2215,12 +2291,12 @@ const styles = StyleSheet.create({
   },
   backIcon: {
     fontSize: 26,
-    color: '#8e867e',
+    color: colors.textSecondary,
     fontFamily: 'PlayfairDisplay_500Medium',
   },
   weddingHubScreen: {
     flex: 1,
-    backgroundColor: '#FDFBF8',
+    backgroundColor: colors.background,
   },
   weddingHubContent: {
     paddingHorizontal: 20,
@@ -2318,7 +2394,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#FFE7E2',
+    backgroundColor: 'rgba(255,155,133,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
@@ -2340,7 +2416,7 @@ const styles = StyleSheet.create({
   },
   nextStepLinkText: {
     fontSize: 14,
-    color: '#F28F79',
+    color: '#FF9B85',
     fontFamily: 'Outfit_600SemiBold',
   },
   nextStepSubtitle: {
@@ -2352,14 +2428,14 @@ const styles = StyleSheet.create({
   nextStepTrack: {
     height: 6,
     borderRadius: 999,
-    backgroundColor: '#E7D9CF',
+    backgroundColor: colors.border,
     overflow: 'hidden',
   },
   nextStepFill: {
     width: '0%',
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#f37569',
+    backgroundColor: TAB_ACTIVE_COLOR,
   },
   sectionBlock: {
     marginBottom: 28,
@@ -2534,16 +2610,16 @@ const styles = StyleSheet.create({
     width: '42%',
     height: '100%',
     borderRadius: 999,
-    backgroundColor: '#F3A28E',
+    backgroundColor: TAB_ACTIVE_COLOR,
   },
   statusPillBudget: {
-    backgroundColor: 'rgba(255,152,133,0.15)',
+    backgroundColor: colors.accentSoft,
     paddingHorizontal: 9,
     paddingVertical: 4,
   },
   statusPillTextBudget: {
     fontSize: 11,
-    color: '#F05F40',
+    color: TAB_ACTIVE_COLOR,
     fontFamily: 'Outfit_600SemiBold',
   },
   guestLine: {
@@ -2635,18 +2711,18 @@ const styles = StyleSheet.create({
   },
   quickActionText: {
     fontSize: 14,
-    color: '#8C8077',
+    color: colors.textSecondary,
     fontFamily: 'Outfit_500Medium',
   },
   quickActionTextPrimary: {
-    color: '#F05F40',
+    color: TAB_ACTIVE_COLOR,
     fontFamily: 'Outfit_600SemiBold',
   },
   placeholderScreen: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDFBF8',
+    backgroundColor: colors.background,
   },
   placeholderText: {
     fontSize: 18,

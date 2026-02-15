@@ -1,11 +1,14 @@
+import { colors } from '../../theme';
+
 export const roadmapColors = {
-  background: '#FDFBF8',
-  surface: '#FFF8F4',
-  card: '#FFF1ED',
-  mutedText: '#8E867E',
-  textDark: '#2B2B2B',
-  accent: '#FF9B85',
-  border: '#F0E4DC',
+  background: colors.background,
+  surface: colors.surface,
+  card: colors.surface,
+  muted: colors.muted,
+  mutedText: colors.textSecondary || colors.textMuted,
+  textDark: colors.text,
+  accent: colors.primary,
+  border: colors.border,
   shadow: 'rgba(0,0,0,0.06)',
 };
 

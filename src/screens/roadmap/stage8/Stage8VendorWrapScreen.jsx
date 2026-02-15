@@ -20,7 +20,7 @@ const THANK_POINTS = [
 ];
 
 export default function Stage8VendorWrapScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage8WrapUp');
 
   return (
     <StageScreenContainer

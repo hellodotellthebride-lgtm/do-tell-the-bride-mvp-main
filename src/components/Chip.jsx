@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { colors, hexToRgba } from '../theme';
 
 const Chip = ({ label, done = false, onPress }) => {
   return (
@@ -25,22 +26,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   chipDefault: {
-    borderColor: 'rgba(0,0,0,0.08)',
-    backgroundColor: '#FFFDF9',
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
   },
   chipDone: {
-    borderColor: 'rgba(255,155,133,0.35)',
-    backgroundColor: 'rgba(255,155,133,0.18)',
+    borderColor: hexToRgba(colors.primary, 0.35),
+    backgroundColor: colors.accentChip,
   },
   chipText: {
     fontSize: 12,
     fontFamily: 'Outfit_500Medium',
   },
   chipTextDefault: {
-    color: '#6F5B55',
+    color: colors.textSecondary,
   },
   chipTextDone: {
-    color: '#F05F40',
+    color: colors.primary,
   },
 });
 

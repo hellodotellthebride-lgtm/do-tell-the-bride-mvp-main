@@ -21,7 +21,7 @@ const FINAL_POINTS = [
 ];
 
 export default function Stage6FinalInvitationsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
   const handleUpdateGuests = () => navigation?.navigate?.('Guest Nest');
 
   return (

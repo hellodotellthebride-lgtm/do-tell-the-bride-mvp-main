@@ -21,7 +21,7 @@ const FOOD_POINTS = [
 ];
 
 export default function Stage4AccessibilityComfortScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage4GuestsInvitations');
   const handleOpenGuestList = () => navigation?.navigate?.('Guest Nest');
 
   return (

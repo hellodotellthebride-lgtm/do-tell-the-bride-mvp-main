@@ -8,15 +8,18 @@ import { roadmapColors } from '../../../components/roadmap/tokens';
 const CARDS = [
   {
     title: 'Get the Big Picture',
-    body: 'See how venue, vendors, outfits, and admin weave together month-by-month.',
+    body:
+      'See how venue, vendors, outfits, and admin connect over time.\nTimelines vary depending on location, vendor demand, and how far away your date is.',
   },
   {
     title: 'Mark Your Rough Date',
-    body: 'You don’t need a venue yet. Choose a month or season so the plan has a spine.',
+    body:
+      'Even a flexible month or season helps structure the plan.\nIn some regions, venues book 12–24 months ahead. In others, shorter timelines are common.',
   },
   {
     title: 'Circle the Key Milestones',
-    body: 'Deposits, dress fittings, tastings, final payments. Awareness alone is calming.',
+    body:
+      'Identify major planning anchors:\n• Venue booking\n• Vendor deposits\n• Outfit ordering\n• Legal paperwork (where applicable)\n• Final payments\n\nThese milestones differ by country and ceremony type — adjust accordingly.',
   },
 ];
 
@@ -30,20 +33,20 @@ export default function MonthByMonthTimelineScreen({ navigation }) {
       backLabel="Back to Your Beginning"
       onBackPress={handleBack}
       title="Month-by-Month Planning Timeline"
-      subtitle="A zoomed-out map of the whole journey."
+      subtitle="A flexible overview based on your date, region, and priorities."
     >
       {CARDS.map((card) => (
         <SoftInfoCard key={card.title} title={card.title} body={card.body} />
       ))}
 
-      <CTAButton label="Use the Master Timeline Tool" onPress={openMasterTimeline} />
+      <CTAButton label="Build Your Personal Timeline" onPress={openMasterTimeline} />
       <CTAButton
         label="View Planning Path"
         variant="secondary"
         onPress={openPlanningPath}
       />
       <Text style={styles.helper}>
-        You can come back and tweak this anytime. The aim is awareness, not perfection.
+        Your timeline adjusts as your plans evolve. Awareness reduces overwhelm.
       </Text>
     </StageScreenContainer>
   );

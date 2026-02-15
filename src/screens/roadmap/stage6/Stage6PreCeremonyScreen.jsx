@@ -26,14 +26,14 @@ const PERSONAL_POINTS = [
 ];
 
 export default function Stage6PreCeremonyScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
   const handleOpenPdf = () => console.log('Open Pre-Ceremony Checklist PDF');
 
   return (
     <StageScreenContainer
       backLabel="Back to Final Details & Personal Touches"
       onBackPress={handleBack}
-      title="Pre-Ceremony Logistics"
+      title="Wedding Morning Flow Plan"
       subtitle="Smooth the morning without over-scheduling."
     >
       <SoftInfoCard title="Pre-Ceremony Checklist">
@@ -77,7 +77,7 @@ export default function Stage6PreCeremonyScreen({ navigation }) {
       </SoftInfoCard>
 
       <CTAButton
-        label="Pre-Ceremony Checklist (PDF)"
+        label="Wedding Morning Checklist (PDF)"
         variant="secondary"
         onPress={handleOpenPdf}
         style={styles.outlineButton}

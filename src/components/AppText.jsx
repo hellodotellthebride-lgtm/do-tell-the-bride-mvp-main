@@ -18,7 +18,7 @@ export default function AppText({
   variant = 'body',
   color = 'text',
   align = 'left',
-  style,
+  style = undefined,
   children,
   ...rest
 }) {

@@ -31,7 +31,7 @@ const FINAL_POINTS = [
 ];
 
 export default function Stage5BridesmaidPlannerScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage5Style');
   const handleAddNotes = () => console.log('Add group notes');
   const handleSavePalette = () => console.log('Save palette to style boards');
 

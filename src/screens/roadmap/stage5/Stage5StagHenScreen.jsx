@@ -26,7 +26,7 @@ const ECO_POINTS = [
 ];
 
 export default function Stage5StagHenScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage5Style');
   const handleOpenPdf = () => console.log('Open Stag & Hen Idea Bank PDF');
 
   return (

@@ -16,6 +16,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import IvyHelpFab from '../components/ui/IvyHelpFab';
+import { colors, hexToRgba } from '../theme';
 
 const STORAGE_KEYS = {
   firstName: 'ONBOARDING_FIRST_NAME',
@@ -621,6 +623,7 @@ export default function AccountScreen({ navigation }) {
           <Row label="Delete account" onPress={handleDeleteAccount} destructive />
         </Section>
       </ScrollView>
+      <IvyHelpFab insetRight={20} insetBottom={20} />
 
       <Modal transparent animationType="fade" visible={!!modalConfig} onRequestClose={closeModals}>
         <View style={styles.modalBackdrop}>
@@ -708,7 +711,7 @@ export default function AccountScreen({ navigation }) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FDFBF8',
+    backgroundColor: colors.background,
   },
   content: {
     paddingHorizontal: 20,
@@ -729,17 +732,17 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 14,
-    color: '#6F5B55',
+    color: colors.textSecondary,
     fontFamily: 'Outfit_500Medium',
   },
   headerTitle: {
     fontSize: 26,
     fontFamily: 'PlayfairDisplay_700Bold',
-    color: '#2B2B2B',
+    color: colors.text,
   },
   headerSubtitle: {
     fontSize: 15,
-    color: '#8E867E',
+    color: colors.textSecondary,
     marginBottom: 16,
     fontFamily: 'Outfit_400Regular',
   },
@@ -749,13 +752,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     letterSpacing: 1.2,
-    color: '#B0A79F',
+    color: colors.textSecondary,
     fontFamily: 'Outfit_500Medium',
     textTransform: 'uppercase',
     marginBottom: 10,
   },
   sectionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     paddingHorizontal: 4,
   },
@@ -770,20 +773,20 @@ const styles = StyleSheet.create({
   rowLabel: {
     fontSize: 16,
     fontFamily: 'Outfit_500Medium',
-    color: '#2B2B2B',
+    color: colors.text,
   },
   rowLabelDestructive: {
-    color: '#D0665F',
+    color: colors.danger,
   },
   rowValue: {
     fontSize: 14,
-    color: '#8E867E',
+    color: colors.textSecondary,
     marginTop: 4,
     fontFamily: 'Outfit_400Regular',
   },
   rowHelper: {
     fontSize: 13,
-    color: '#B0A79F',
+    color: colors.textSecondary,
     marginTop: 2,
   },
   toggleRow: {
@@ -801,26 +804,26 @@ const styles = StyleSheet.create({
   chip: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: '#E5DCD4',
+    borderColor: colors.border,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    backgroundColor: '#FFFDF9',
+    backgroundColor: colors.surface,
   },
   chipActive: {
-    backgroundColor: 'rgba(255,155,133,0.15)',
-    borderColor: '#FF9B85',
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.primary,
   },
   chipLabel: {
     fontSize: 14,
     fontFamily: 'Outfit_500Medium',
-    color: '#8E867E',
+    color: colors.textSecondary,
   },
   chipLabelActive: {
-    color: '#F06F54',
+    color: colors.primary,
   },
   sectionHelper: {
     fontSize: 13,
-    color: '#B0A79F',
+    color: colors.textSecondary,
     marginBottom: 6,
     paddingHorizontal: 12,
     fontFamily: 'Outfit_400Regular',
@@ -836,26 +839,26 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   modalCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 20,
     padding: 20,
   },
   modalTitle: {
     fontSize: 18,
     fontFamily: 'PlayfairDisplay_700Bold',
-    color: '#2B2B2B',
+    color: colors.text,
     marginBottom: 12,
   },
   modalInput: {
     borderWidth: 1,
-    borderColor: '#E8DDD7',
+    borderColor: colors.border,
     borderRadius: 14,
     paddingVertical: 12,
     paddingHorizontal: 14,
     fontSize: 16,
     fontFamily: 'Outfit_500Medium',
-    color: '#2B2B2B',
-    backgroundColor: '#FFFDF9',
+    color: colors.text,
+    backgroundColor: colors.surface,
     marginBottom: 12,
   },
   modalActions: {
@@ -870,10 +873,10 @@ const styles = StyleSheet.create({
   },
   modalButtonText: {
     fontSize: 15,
-    color: '#8E867E',
+    color: colors.textSecondary,
   },
   modalButtonPrimary: {
-    backgroundColor: '#FF9B85',
+    backgroundColor: colors.primary,
     borderRadius: 999,
   },
   modalButtonPrimaryText: {
@@ -883,11 +886,11 @@ const styles = StyleSheet.create({
   },
   segmentedField: {
     borderWidth: 1,
-    borderColor: '#E8DDD7',
+    borderColor: colors.border,
     borderRadius: 16,
     paddingVertical: 10,
     paddingHorizontal: 18,
-    backgroundColor: '#FFFDF9',
+    backgroundColor: colors.surface,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -898,7 +901,7 @@ const styles = StyleSheet.create({
     width: 56,
     fontSize: 18,
     fontFamily: 'Outfit_500Medium',
-    color: '#2B2B2B',
+    color: colors.text,
     paddingVertical: 6,
     paddingHorizontal: 0,
   },
@@ -906,12 +909,12 @@ const styles = StyleSheet.create({
     width: 92,
   },
   segmentInputActive: {
-    backgroundColor: 'rgba(255,155,133,0.12)',
+    backgroundColor: hexToRgba(colors.primary, 0.12),
     borderRadius: 12,
   },
   segmentSeparator: {
     fontSize: 18,
-    color: '#C6BFB8',
+    color: colors.border,
     fontFamily: 'Outfit_500Medium',
   },
 });

@@ -20,7 +20,7 @@ const WORK_POINTS = [
 ];
 
 export default function Stage8NameChangeScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage8WrapUp');
 
   return (
     <StageScreenContainer

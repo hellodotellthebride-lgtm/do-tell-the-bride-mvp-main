@@ -26,7 +26,7 @@ const BUDGET_POINTS = [
 ];
 
 export default function Stage5SustainableFashionScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage5Style');
   const handleOpenPdf = () => console.log('Open Sustainable Fashion Guide PDF');
 
   return (

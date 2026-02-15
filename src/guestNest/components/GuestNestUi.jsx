@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import UIButton from '../../components/ui/Button';
 import AppText from '../../components/AppText';
 import { colors, radius, shadows, spacing } from '../../theme';
 
@@ -15,53 +16,7 @@ export const Card = ({ children, style }) => (
   <View style={[styles.card, style]}>{children}</View>
 );
 
-export const Button = ({
-  label,
-  onPress,
-  variant = 'primary',
-  size = 'md',
-  disabled,
-  icon,
-  style,
-}) => {
-  const isNonPrimary = variant === 'secondary' || variant === 'ghost';
-  const variantStyle =
-    variant === 'secondary'
-      ? styles.buttonSecondary
-      : variant === 'ghost'
-        ? styles.buttonGhost
-        : styles.buttonPrimary;
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      hitSlop={spacing.sm}
-      style={({ pressed }) => [
-        styles.buttonBase,
-        size === 'sm' && styles.buttonSm,
-        variantStyle,
-        disabled && styles.buttonDisabled,
-        pressed && !disabled && styles.buttonPressed,
-        style,
-      ]}
-    >
-      {icon ? (
-        <Ionicons
-          name={icon}
-          size={18}
-          color={isNonPrimary ? colors.text : '#FFFFFF'}
-          style={{ marginRight: 10 }}
-        />
-      ) : null}
-      <AppText
-        variant="body"
-        style={[styles.buttonLabel, isNonPrimary && styles.buttonLabelSecondary]}
-      >
-        {label}
-      </AppText>
-    </Pressable>
-  );
-};
+export const Button = UIButton;
 
 export const ChoiceChip = ({ label, selected, onPress, tone = 'neutral' }) => {
   const toneStyles = useMemo(() => {
@@ -209,43 +164,6 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0,0,0,0.04)',
     ...shadows.softCard,
   },
-  buttonBase: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  buttonSm: {
-    paddingVertical: 12,
-  },
-  buttonPrimary: {
-    backgroundColor: colors.accent,
-  },
-  buttonSecondary: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: 'rgba(255,155,133,0.6)',
-  },
-  buttonGhost: {
-    backgroundColor: 'rgba(255,155,133,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,155,133,0.25)',
-  },
-  buttonLabel: {
-    fontFamily: 'Outfit_500Medium',
-    color: '#FFFFFF',
-  },
-  buttonLabelSecondary: {
-    color: colors.text,
-  },
-  buttonPressed: {
-    opacity: 0.86,
-  },
-  buttonDisabled: {
-    opacity: 0.45,
-  },
   chip: {
     borderRadius: radius.pill,
     paddingVertical: 8,
@@ -258,7 +176,7 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   chipUnselected: {
-    backgroundColor: '#FFFDFB',
+    backgroundColor: colors.surface,
     borderColor: 'rgba(0,0,0,0.08)',
   },
   chipNeutral: {
@@ -287,7 +205,7 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   chipAccentText: {
-    color: '#F05F40',
+    color: colors.primary,
   },
   chipSuccessText: {
     color: '#4F6B60',
@@ -323,13 +241,13 @@ const styles = StyleSheet.create({
     color: '#4F6B60',
   },
   pillTextWarning: {
-    color: '#F05F40',
+    color: colors.primary,
   },
   pillTextDanger: {
     color: '#9A4F44',
   },
   input: {
-    backgroundColor: '#FFFDFB',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -344,7 +262,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   select: {
-    backgroundColor: '#FFFDFB',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,

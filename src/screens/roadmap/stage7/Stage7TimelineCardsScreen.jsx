@@ -21,7 +21,7 @@ const SHARE_POINTS = [
 ];
 
 export default function Stage7TimelineCardsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage7WeddingWeek');
   const handleSupplierTimeline = () => console.log('Open Wedding Day Timeline – Supplier Overview');
   const handleTimelineCards = () => console.log('Open Wedding Day Timeline Cards');
 

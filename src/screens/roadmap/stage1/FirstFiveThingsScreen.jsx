@@ -4,11 +4,14 @@ import StageScreenContainer from './StageScreenContainer';
 import { roadmapColors, roadmapRadius } from '../../../components/roadmap/tokens';
 
 const ITEMS = [
-  'Celebrate the Moment',
-  'Rough Timeline & Season',
-  'Choose Your Early Non-Negotiables',
-  'Decide Rough Guest Count',
-  'Set a Realistic Budget Shape',
+  { title: 'Celebrate the Moment' },
+  { title: 'Choose a Target Date or Season' },
+  { title: 'Define Your Top 3 Non-Negotiables' },
+  {
+    title: 'Set a Guest Range',
+    subtitle: 'Even a range (e.g., 80–100) shapes venue and catering costs.',
+  },
+  { title: 'Set Your Comfortable Budget Range' },
 ];
 
 export default function FirstFiveThingsScreen({ navigation }) {
@@ -19,18 +22,23 @@ export default function FirstFiveThingsScreen({ navigation }) {
       backLabel="Back to Your Beginning"
       onBackPress={handleBack}
       title="First 5 Things to Do"
-      subtitle="Mini checklist, major calm."
+      subtitle="Your starting sequence — simple, logical, flexible."
     >
-      {ITEMS.map((label, index) => (
-        <View key={label} style={styles.card}>
+      {ITEMS.map((item, index) => (
+        <View key={item.title} style={styles.card}>
           <View style={styles.numberBadge}>
             <Text style={styles.numberText}>{index + 1}</Text>
           </View>
-          <Text style={styles.cardLabel}>{label}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardLabel}>{item.title}</Text>
+            {item.subtitle ? (
+              <Text style={styles.cardSubLabel}>{item.subtitle}</Text>
+            ) : null}
+          </View>
         </View>
       ))}
       <Text style={styles.encouragement}>
-        None of this needs to happen today. This is your gentle starting line.
+        These five decisions create the foundation for every later step.
       </Text>
     </StageScreenContainer>
   );
@@ -64,6 +72,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit_500Medium',
     color: roadmapColors.textDark,
+  },
+  cardSubLabel: {
+    marginTop: 4,
+    fontSize: 14,
+    lineHeight: 20,
+    fontFamily: 'Outfit_400Regular',
+    color: roadmapColors.mutedText,
   },
   encouragement: {
     marginTop: 8,

@@ -26,7 +26,7 @@ const GROUP_POINTS = [
 ];
 
 export default function Stage5GroomStyleScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage5Style');
   const handleOpenPdf = () => console.log('Open Groom & Groomsmen Wear Guide PDF');
 
   return (

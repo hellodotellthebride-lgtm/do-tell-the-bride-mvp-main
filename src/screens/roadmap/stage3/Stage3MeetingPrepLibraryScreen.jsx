@@ -6,13 +6,7 @@ import { StyleSheet, Text } from 'react-native';
 import { roadmapColors, roadmapSpacing } from '../../../components/roadmap/tokens';
 
 export default function Stage3MeetingPrepLibraryScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
 
   return (
     <StageScreenContainer

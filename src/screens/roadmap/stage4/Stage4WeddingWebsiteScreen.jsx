@@ -21,7 +21,7 @@ const GUIDE_POINTS = [
 ];
 
 export default function Stage4WeddingWebsiteScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage4GuestsInvitations');
   const handleOpenTemplates = () => console.log('Open Wedding Website Guide');
 
   return (

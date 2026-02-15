@@ -24,7 +24,7 @@ const IMPACT_POINTS = [
 ];
 
 export default function Stage2GuestCountScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage2EarlyDecisions');
   const handleOpenGuestList = () => navigation?.navigate?.('Guest Nest');
 
   return (

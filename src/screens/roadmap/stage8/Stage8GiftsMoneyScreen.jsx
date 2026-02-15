@@ -20,7 +20,7 @@ const DECIDE_POINTS = [
 ];
 
 export default function Stage8GiftsMoneyScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage8WrapUp');
 
   return (
     <StageScreenContainer

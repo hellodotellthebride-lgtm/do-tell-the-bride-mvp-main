@@ -37,13 +37,7 @@ const TIMELINE_CARDS = [
 ];
 
 export default function Stage3VendorTimelineScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
   const handleDownload = () => console.log('download vendor comparison');
   const handleUpdate = () => console.log('update timeline');
   const handleExport = () => console.log('export timeline');

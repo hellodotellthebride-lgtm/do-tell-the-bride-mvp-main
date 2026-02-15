@@ -30,7 +30,7 @@ const NOTE_POINTS = [
 ];
 
 export default function Stage6SpeechesScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
 
   return (
     <StageScreenContainer

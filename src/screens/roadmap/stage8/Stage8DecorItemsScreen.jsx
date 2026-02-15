@@ -20,7 +20,7 @@ const KEEP_POINTS = [
 ];
 
 export default function Stage8DecorItemsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage8WrapUp');
 
   return (
     <StageScreenContainer

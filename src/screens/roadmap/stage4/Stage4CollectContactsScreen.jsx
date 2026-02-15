@@ -21,7 +21,7 @@ const CENTRAL_POINTS = [
 ];
 
 export default function Stage4CollectContactsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage4GuestsInvitations');
   const handleOpenContacts = () => console.log('Open Guest Contacts');
 
   return (

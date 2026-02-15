@@ -36,7 +36,7 @@ const FLOW_POINTS = [
 ];
 
 export default function Stage6SeatingPlanScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
   const handleOpenBuilder = () => console.log('Open seating plan builder');
   const handleLayoutNotes = () => navigation?.navigate?.('WeddingRoadmap');
 

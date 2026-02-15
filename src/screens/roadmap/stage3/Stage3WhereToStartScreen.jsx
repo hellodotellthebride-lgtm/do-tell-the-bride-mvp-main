@@ -51,13 +51,7 @@ const CARDS = [
 ];
 
 export default function Stage3WhereToStartScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
   const openVendorMatch = () => navigation?.navigate?.('WeddingHub');
 
   return (

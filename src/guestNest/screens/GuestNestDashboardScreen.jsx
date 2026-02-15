@@ -1,31 +1,40 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Screen from '../../components/Screen';
+import Card from '../../components/ui/Card';
 import AppText from '../../components/AppText';
-import { colors, spacing } from '../../theme';
+import { colors, gapLg, gapMd, gapSm, sectionGap } from '../../theme';
 import GuestNestHeader from '../components/GuestNestHeader';
-import { Button, Card } from '../components/GuestNestUi';
+import { Button } from '../components/GuestNestUi';
 import { useGuestNest } from '../GuestNestProvider';
 
 const SummaryTile = ({ label, value }) => (
-  <View style={styles.summaryTile}>
-    <AppText variant="caption" color="textMuted" style={styles.summaryLabel}>
-      {label}
-    </AppText>
-    <AppText variant="h2" style={styles.summaryValue}>
-      {value}
-    </AppText>
-  </View>
+  <Card elevated={false} backgroundColor={colors.surface} padding={gapMd} style={styles.summaryTile}>
+    <View style={styles.summaryTileStack}>
+      <AppText variant="caption" color="textMuted">
+        {label}
+      </AppText>
+      <AppText variant="h2" style={styles.summaryValue}>
+        {value}
+      </AppText>
+    </View>
+  </Card>
 );
 
 const LinkCard = ({ icon, title, description, onPress }) => (
-  <Pressable onPress={onPress} hitSlop={8} style={({ pressed }) => [styles.linkCard, pressed && styles.pressed]}>
+  <Pressable
+    onPress={onPress}
+    hitSlop={gapSm}
+    style={({ pressed }) => [styles.linkRow, pressed && styles.linkRowPressed]}
+  >
     <View style={styles.linkIcon}>
       <Ionicons name={icon} size={18} color={colors.accent} />
     </View>
     <View style={{ flex: 1 }}>
-      <AppText variant="h3" style={{ marginBottom: 2 }}>
+      <AppText variant="h3">
         {title}
       </AppText>
       {description ? (
@@ -38,9 +47,19 @@ const LinkCard = ({ icon, title, description, onPress }) => (
   </Pressable>
 );
 
+const GUEST_NEST_LAST_OPEN_AT_KEY = 'GUEST_NEST_LAST_OPEN_AT';
+
 export default function GuestNestDashboardScreen({ navigation }) {
   const { state } = useGuestNest();
   const guests = state.guests || [];
+
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.setItem(GUEST_NEST_LAST_OPEN_AT_KEY, String(Date.now())).catch((error) => {
+        console.warn('[GuestNest] unable to store last open timestamp', error);
+      });
+    }, []),
+  );
 
   const summary = useMemo(() => {
     const total = guests.length;
@@ -54,18 +73,18 @@ export default function GuestNestDashboardScreen({ navigation }) {
   const isEmpty = summary.total === 0;
 
   return (
-    <Screen>
+    <Screen scroll>
       <GuestNestHeader title="Guest Nest" subtitle="Everyone you’re welcoming." onBack={null} />
 
       {isEmpty ? (
-        <Card style={styles.heroCard}>
+        <Card style={styles.sectionCard}>
           <View style={styles.emptyIcon}>
             <Ionicons name="people-outline" size={22} color={colors.accent} />
           </View>
-          <AppText variant="h3" style={{ marginBottom: 6 }}>
+          <AppText variant="h3" style={styles.cardTitle}>
             Ready to start adding guests?
           </AppText>
-          <AppText variant="bodySmall" color="textMuted" style={{ marginBottom: spacing.lg }}>
+          <AppText variant="bodySmall" color="textMuted" style={styles.cardBody}>
             Add one guest at a time, or paste a list and we’ll do the rest. Everything stays saved on
             this device.
           </AppText>
@@ -74,7 +93,7 @@ export default function GuestNestDashboardScreen({ navigation }) {
             icon="person-add-outline"
             onPress={() => navigation.navigate('AddGuest')}
             size="sm"
-            style={{ marginBottom: spacing.md }}
+            style={{ marginBottom: gapMd }}
           />
           <Button
             label="Bulk Add Guests"
@@ -85,8 +104,8 @@ export default function GuestNestDashboardScreen({ navigation }) {
           />
         </Card>
       ) : (
-        <Card style={styles.heroCard}>
-          <View style={styles.ctaRow}>
+        <Card style={styles.sectionCard}>
+          <View style={styles.buttonRow}>
             <Button
               label="Add Guest"
               icon="person-add-outline"
@@ -106,58 +125,58 @@ export default function GuestNestDashboardScreen({ navigation }) {
         </Card>
       )}
 
-      <Card style={{ marginBottom: spacing.lg }}>
-        <AppText variant="h3" style={{ marginBottom: spacing.md }}>
+      <Card style={styles.sectionCard}>
+        <AppText variant="h3" style={styles.sectionTitle}>
           At a glance
         </AppText>
-        <View style={styles.summaryGroup}>
-          <View style={styles.summaryGrid}>
-            <SummaryTile label="Total guests" value={summary.total} />
-            <SummaryTile label="RSVP received" value={summary.received} />
-            <SummaryTile label="Still waiting" value={summary.pending} />
-            <SummaryTile label="Declined" value={summary.declined} />
-          </View>
+        <View style={styles.summaryGrid}>
+          <SummaryTile label="Total guests" value={summary.total} />
+          <SummaryTile label="RSVP received" value={summary.received} />
+          <SummaryTile label="Still waiting" value={summary.pending} />
+          <SummaryTile label="Declined" value={summary.declined} />
         </View>
       </Card>
 
-      <Card style={{ marginBottom: spacing.lg }}>
-        <AppText variant="h3" style={{ marginBottom: spacing.md }}>
+      <Card style={styles.sectionCard}>
+        <AppText variant="h3" style={styles.sectionTitle}>
           Guest tools
         </AppText>
-        <LinkCard
-          icon="list-outline"
-          title="View all guests"
-          description="Search, filter, RSVP and edit details."
-          onPress={() => navigation.navigate('GuestList')}
-        />
-        <LinkCard
-          icon="grid-outline"
-          title="Seating plan"
-          description="Add tables and assign guests calmly."
-          onPress={() => navigation.navigate('SeatingPlan')}
-        />
-        <LinkCard
-          icon="restaurant-outline"
-          title="Meal tracking"
-          description="Keep meal choices and dietary notes in one place."
-          onPress={() => navigation.navigate('MealTracking')}
-        />
-        <LinkCard
-          icon="settings-outline"
-          title="Settings"
-          description="Manage meal options and guest groups."
-          onPress={() => navigation.navigate('GuestNestSettings')}
-        />
+        <View style={styles.linkList}>
+          <LinkCard
+            icon="list-outline"
+            title="View all guests"
+            description="Search, filter, RSVP and edit details."
+            onPress={() => navigation.navigate('GuestList')}
+          />
+          <LinkCard
+            icon="grid-outline"
+            title="Seating plan"
+            description="Add tables and assign guests calmly."
+            onPress={() => navigation.navigate('SeatingPlan')}
+          />
+          <LinkCard
+            icon="restaurant-outline"
+            title="Meal tracking"
+            description="Keep meal choices and dietary notes in one place."
+            onPress={() => navigation.navigate('MealTracking')}
+          />
+          <LinkCard
+            icon="settings-outline"
+            title="Settings"
+            description="Manage meal options and guest groups."
+            onPress={() => navigation.navigate('GuestNestSettings')}
+          />
+        </View>
       </Card>
 
       <Card>
-        <AppText variant="h3" style={{ marginBottom: 6 }}>
+        <AppText variant="h3" style={styles.cardTitle}>
           Export (coming soon)
         </AppText>
-        <AppText variant="bodySmall" color="textMuted" style={{ marginBottom: spacing.lg }}>
+        <AppText variant="bodySmall" color="textMuted" style={styles.cardBody}>
           For v1, these buttons are placeholders — your data is safely stored locally.
         </AppText>
-        <Button label="Export CSV" disabled onPress={() => {}} style={{ marginBottom: spacing.md }} />
+        <Button label="Export CSV" disabled onPress={() => {}} style={{ marginBottom: gapMd }} />
         <Button label="Export PDF" variant="secondary" disabled onPress={() => {}} />
       </Card>
     </Screen>
@@ -165,8 +184,17 @@ export default function GuestNestDashboardScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  pressed: {
-    opacity: 0.86,
+  sectionCard: {
+    marginBottom: sectionGap,
+  },
+  sectionTitle: {
+    marginBottom: gapMd,
+  },
+  cardTitle: {
+    marginBottom: gapSm,
+  },
+  cardBody: {
+    marginBottom: gapLg,
   },
   emptyIcon: {
     width: 52,
@@ -175,54 +203,42 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: gapMd,
   },
-  heroCard: {
-    backgroundColor: colors.surface,
-    padding: spacing.lg,
-    marginBottom: spacing.xxl,
-  },
-  ctaRow: {
+  buttonRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: gapMd,
   },
   summaryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  summaryGroup: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: spacing.lg,
+    gap: gapSm,
   },
   summaryTile: {
     flexBasis: '48%',
     flexGrow: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
     minWidth: 140,
   },
-  summaryLabel: {
-    marginBottom: 4,
-    fontSize: 11,
-    lineHeight: 14,
-    opacity: 0.82,
+  summaryTileStack: {
+    gap: gapSm,
   },
   summaryValue: {
     color: colors.text,
     fontSize: 30,
     lineHeight: 36,
   },
-  linkCard: {
+  linkList: {
+    gap: gapSm,
+  },
+  linkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
+    gap: gapLg,
+    paddingVertical: gapMd,
     borderRadius: 16,
-    marginBottom: spacing.sm,
-    backgroundColor: 'rgba(0,0,0,0.02)',
+  },
+  linkRowPressed: {
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
   linkIcon: {
     width: 42,

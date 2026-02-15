@@ -30,13 +30,7 @@ const CHECKLIST_POINTS = [
 ];
 
 export default function Stage3EcoFriendlyGuideScreen({ navigation }) {
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3DreamTeam');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3DreamTeam');
   const openChecklist = () => console.log('Open Eco-Friendly Vendor Checklist');
   const openInspiration = () => navigation?.navigate?.('InspirationStation');
   const openBudgetBuddy = () => navigation?.navigate?.('Budget Buddy');

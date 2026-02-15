@@ -24,7 +24,7 @@ const SYSTEM_POINTS = [
 ];
 
 export default function Stage2BudgetLogisticsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage2EarlyDecisions');
   const openBudgetBuddy = () => navigation?.navigate?.('Budget Buddy');
 
   return (

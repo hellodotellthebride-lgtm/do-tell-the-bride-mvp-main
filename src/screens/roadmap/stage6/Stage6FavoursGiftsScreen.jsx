@@ -26,7 +26,7 @@ const THANKS_POINTS = [
 ];
 
 export default function Stage6FavoursGiftsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
   const handleOpenGuide = () => console.log('Open Wedding Favours & Gifts Guide');
 
   return (

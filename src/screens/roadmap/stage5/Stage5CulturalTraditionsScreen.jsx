@@ -25,7 +25,7 @@ const KEEP_POINTS = [
 ];
 
 export default function Stage5CulturalTraditionsScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage5Style');
 
   return (
     <StageScreenContainer

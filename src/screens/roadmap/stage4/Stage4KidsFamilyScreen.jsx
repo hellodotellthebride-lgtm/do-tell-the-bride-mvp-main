@@ -20,7 +20,7 @@ const FAMILY_POINTS = [
 ];
 
 export default function Stage4KidsFamilyScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage4GuestsInvitations');
 
   return (
     <StageScreenContainer

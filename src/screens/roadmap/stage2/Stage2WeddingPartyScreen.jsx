@@ -24,7 +24,7 @@ const ROLE_POINTS = [
 ];
 
 export default function Stage2WeddingPartyScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
+  const handleBack = () => navigation?.navigate?.('Stage2EarlyDecisions');
   const handleWaysToAsk = () =>
     Alert.alert('Coming soon', 'Ways to ask your wedding party will live here soon.');
   const handleRolesGuide = () =>

@@ -188,7 +188,7 @@ export default function BulkAddGuestsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   textarea: {
-    backgroundColor: '#FFFDFB',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,

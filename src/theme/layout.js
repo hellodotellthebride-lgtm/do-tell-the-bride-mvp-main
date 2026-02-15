@@ -1,10 +1,11 @@
-import { spacing, sizes } from './tokens';
+import { cardPadding, gapLg, screenPaddingX, sectionGap, sizes } from './tokens';
 
 export const layout = {
-  screenPaddingX: spacing.xl,
-  screenPaddingTop: spacing.lg,
-  sectionGap: spacing.jumbo,
-  cardGap: spacing.lg,
-  safeBottomPadding: spacing.xl,
+  screenPaddingX,
+  screenPaddingTop: gapLg,
+  sectionGap,
+  cardGap: gapLg,
+  cardPadding,
+  safeBottomPadding: screenPaddingX,
   maxCardWidth: sizes.cardMaxWidth,
 };

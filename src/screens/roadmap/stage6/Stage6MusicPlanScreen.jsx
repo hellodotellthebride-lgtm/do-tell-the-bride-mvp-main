@@ -5,9 +5,9 @@ import SoftInfoCard from '../../../components/roadmap/SoftInfoCard';
 import CTAButton from '../../../components/roadmap/CTAButton';
 import { roadmapColors, roadmapSpacing } from '../../../components/roadmap/tokens';
 
-const DANCE_POINTS = [
-  'Choose a song that feels like you — or skip the tradition altogether.',
-  'If you’re nervous, keep it short or invite others to join halfway.',
+const KEY_MOMENTS_POINTS = [
+  'If you’re doing a first dance or another key moment (entrance, money dance, cultural dance), choose what fits you.',
+  'If you’re nervous, keep it short, keep it simple, or invite others to join.',
 ];
 
 const MAP_POINTS = [
@@ -21,19 +21,19 @@ const DECIDE_POINTS = [
 ];
 
 export default function Stage6MusicPlanScreen({ navigation }) {
-  const handleBack = () => navigation?.goBack?.();
-  const handleOpenGuide = () => console.log('Open First Dance & Music Planning Guide');
+  const handleBack = () => navigation?.navigate?.('Stage6FinalDetails');
+  const handleOpenGuide = () => console.log('Open Music & Key Moments Plan Guide');
 
   return (
     <StageScreenContainer
       backLabel="Back to Final Details & Personal Touches"
       onBackPress={handleBack}
-      title="First Dance & Music Planning"
+      title="Music & Key Moments Plan"
       subtitle="Keep music choices personal and stress-free."
     >
-      <SoftInfoCard title="Choose Your First Dance (or Decide Not To)">
+      <SoftInfoCard title="Choose Key Moments (Or Skip Them)">
         <View style={styles.bulletList}>
-          {DANCE_POINTS.map((point) => (
+          {KEY_MOMENTS_POINTS.map((point) => (
             <Text key={point} style={styles.bulletText}>
               • {point}
             </Text>
@@ -62,7 +62,7 @@ export default function Stage6MusicPlanScreen({ navigation }) {
       </SoftInfoCard>
 
       <CTAButton
-        label="First Dance & Music Planning Guide"
+        label="Music & Key Moments Guide"
         variant="secondary"
         onPress={handleOpenGuide}
         style={styles.outlineButton}

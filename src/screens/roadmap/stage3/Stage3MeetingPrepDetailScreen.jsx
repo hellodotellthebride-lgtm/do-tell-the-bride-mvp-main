@@ -8,13 +8,7 @@ import { getVendorById } from './vendorData';
 export default function Stage3MeetingPrepDetailScreen({ navigation, route }) {
   const vendorId = route?.params?.vendorId;
   const vendor = getVendorById(vendorId) ?? { label: 'Vendor' };
-  const handleBack = () => {
-    if (navigation?.canGoBack?.()) {
-      navigation.goBack();
-      return;
-    }
-    navigation?.navigate?.('Stage3MeetingPrepLibrary');
-  };
+  const handleBack = () => navigation?.navigate?.('Stage3MeetingPrepLibrary');
   const openPdf = () => {
     console.log('Open meeting prep PDF for', vendor.label);
   };

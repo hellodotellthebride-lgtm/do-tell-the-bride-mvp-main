@@ -1,112 +1,352 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Path, Rect } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import Screen from './src/components/Screen';
+import IvyHelpFab from './src/components/ui/IvyHelpFab';
 import AppText from './src/components/AppText';
+import TodayStepCard from './src/components/TodayStepCard';
+import PlanSnapshot from './src/components/PlanSnapshot';
+import QuickToolPill from './src/components/QuickToolPill';
+import WellnessPanel from './src/components/WellnessPanel';
+import VendorCarousel from './src/components/VendorCarousel';
+import { loadBudgetState } from './src/budget/budgetStorage';
+import { loadGuestNest } from './src/guestNest/guestNestStorage';
+import { computeOverallProgress, loadChecklistState, loadCompletionState } from './src/roadmap/progressStorage';
+import { getChecklistItems } from './src/roadmap/checklists';
+import { getRecommendedVendors } from './src/vendors/vendorRecommendations';
 import { colors, spacing } from './src/theme';
-
-const HERO_HEIGHT = 260;
-const heroImage = 'https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=1740&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D';
 
 const FIRST_NAME_KEY = 'ONBOARDING_FIRST_NAME';
 const PARTNER_NAME_KEY = 'ONBOARDING_PARTNER_NAME';
 const WEDDING_DATE_KEY = 'ONBOARDING_WEDDING_DATE';
-const MIN_YEAR = 1900;
-const MAX_YEAR = 2100;
+const WEDDING_LOCATION_KEY = 'ACCOUNT_WEDDING_LOCATION';
+const WEDDING_TYPE_KEY = 'ACCOUNT_WEDDING_TYPE';
+const GUEST_ESTIMATE_KEY = 'ACCOUNT_GUEST_ESTIMATE';
+const HOME_LAST_RSVP_REMINDER_AT_KEY = 'HOME_LAST_RSVP_REMINDER_AT';
+const HOME_LAST_ACTIVE_AT_KEY = 'HOME_LAST_ACTIVE_AT';
+const HOME_LAST_TODAY_STEP_PRESS_AT_KEY = 'HOME_LAST_TODAY_STEP_PRESS_AT';
+const GUEST_NEST_LAST_OPEN_AT_KEY = 'GUEST_NEST_LAST_OPEN_AT';
+const HOME_NUDGE_LAST_SHOWN_GUEST_KEY = 'HOME_NUDGE_LAST_SHOWN_GUEST';
+const HOME_NUDGE_LAST_SHOWN_TODAY_KEY = 'HOME_NUDGE_LAST_SHOWN_TODAY';
+const HOME_NUDGE_LAST_SHOWN_VENDOR_KEY = 'HOME_NUDGE_LAST_SHOWN_VENDOR';
 
-const FIRST_PLACEHOLDER = 'Tell us your name';
-const PARTNER_PLACEHOLDER = 'Tell us your partner’s name';
-const DATE_PLACEHOLDER = 'Wedding date';
+const HOME_COLORS = {
+  background: colors.background,
+  backgroundTop: colors.muted,
+  card: colors.surface,
+  text: colors.text,
+  textBody: colors.textSecondary,
+  textSoft: colors.textSecondary,
+  coral: colors.primary,
+  coralSoft: colors.accentChip,
+  peachTint: colors.accentChip,
+  green: '#3F7F63',
+  greenTint: '#EAF6EF',
+};
 
-const featureTiles = [
-  {
-    id: 'hub',
-    title: 'Wedding Hub',
-    subtitle: 'Your plan in one place',
-    tint: '#FCEFEA',
-    icon: 'heart-outline',
-    route: 'WeddingHub',
-    primary: true,
-  },
-  {
-    id: 'inspo',
-    title: 'Inspiration Station',
-    subtitle: 'Save styles & palettes',
-    tint: '#FFF1ED',
-    icon: 'color-palette-outline',
-    route: 'InspirationStation',
-    primary: false,
-  },
+const DEFAULT_TODAY_STEP = {
+  id: 'budget',
+  title: 'Set your starting budget',
+  subtitle: 'A calm number to anchor decisions.',
+  ctaLabel: 'Open Budget Buddy',
+  type: 'money',
+  badgeIcon: '💸',
+  routeName: 'Budget Buddy',
+  params: undefined,
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const getDaysSince = (timestamp) => {
+  if (!Number.isFinite(timestamp) || timestamp <= 0) return null;
+  const ms = Date.now() - timestamp;
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  return Math.floor(ms / DAY_MS);
+};
+
+const isSameLocalDay = (a, b) => {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  const da = new Date(a);
+  const db = new Date(b);
+  return (
+    da.getFullYear() === db.getFullYear() &&
+    da.getMonth() === db.getMonth() &&
+    da.getDate() === db.getDate()
+  );
+};
+
+const isProgressTightForTimeline = ({ weddingDayState, daysUntilWedding, overallProgress }) => {
+  if (weddingDayState !== 'before') return false;
+  if (typeof daysUntilWedding !== 'number') return false;
+  if (!Number.isFinite(overallProgress)) return false;
+
+  if (daysUntilWedding <= 14) return overallProgress < 60;
+  if (daysUntilWedding <= 45) return overallProgress < 40;
+  if (daysUntilWedding <= 120) return overallProgress < 20;
+  return false;
+};
+
+const formatDaysSince = (msSince) => {
+  if (!Number.isFinite(msSince) || msSince < 0) return null;
+  const days = Math.floor(msSince / DAY_MS);
+  if (days <= 0) return 'Reminder sent today';
+  return `Reminder sent ${days}d ago`;
+};
+
+const parseGuestCap = (raw) => {
+  if (raw === null || raw === undefined) return Number.NaN;
+  if (typeof raw === 'number') return raw;
+  const text = String(raw).trim();
+  if (!text) return Number.NaN;
+  const matches = text.match(/\d+(\.\d+)?/g);
+  if (!matches) return Number.NaN;
+  const numbers = matches.map((m) => Number(m)).filter((n) => Number.isFinite(n));
+  if (numbers.length === 0) return Number.NaN;
+  return Math.max(...numbers);
+};
+
+const getFirstName = (fullName) => {
+  if (typeof fullName !== 'string') return null;
+  const trimmed = fullName.trim();
+  if (!trimmed) return null;
+  const firstToken = trimmed.split(/\s+/g).filter(Boolean)[0];
+  if (!firstToken) return null;
+  const asciiCleaned = firstToken.replace(/^[^A-Za-z0-9]+/, '').replace(/[^A-Za-z0-9]+$/, '');
+  return asciiCleaned || firstToken;
+};
+
+const ROADMAP_STAGE_ORDER = [
+  'stage-1',
+  'stage-2',
+  'stage-3',
+  'stage-4',
+  'stage-5',
+  'stage-6',
+  'stage-7',
+  'stage-8',
 ];
+
+const ROADMAP_STAGE_ROUTE_MAP = {
+  'stage-1': 'Stage1Overview',
+  'stage-2': 'Stage2EarlyDecisions',
+  'stage-3': 'Stage3DreamTeam',
+  'stage-4': 'Stage4GuestsInvitations',
+  'stage-5': 'Stage5Style',
+  'stage-6': 'Stage6FinalDetails',
+  'stage-7': 'Stage7WeddingWeek',
+  'stage-8': 'Stage8WrapUp',
+};
+
+const getContinuePlanTarget = (roadmapFocus) => {
+  if (!roadmapFocus?.stageId) return null;
+  const stageRoute = ROADMAP_STAGE_ROUTE_MAP[roadmapFocus.stageId] || 'WeddingRoadmap';
+  const params =
+    stageRoute === 'WeddingRoadmap'
+      ? { state: 'progress' }
+      : { autoStart: true, focusItemId: roadmapFocus.itemId };
+
+  return {
+    stageId: roadmapFocus.stageId,
+    itemId: roadmapFocus.itemId,
+    label: roadmapFocus.label,
+    routeName: stageRoute,
+    params,
+  };
+};
+
+const getRoadmapNextFocusInStages = (checklistState, stageIds) => {
+  for (const stageId of stageIds) {
+    const items = getChecklistItems(stageId);
+    if (items.length === 0) continue;
+    const stageMap = checklistState?.[stageId] ?? {};
+    const nextItem = items.find((item) => !stageMap[item.id]);
+    if (nextItem) {
+      const routeName = ROADMAP_STAGE_ROUTE_MAP[stageId] || 'WeddingRoadmap';
+      return {
+        stageId,
+        itemId: nextItem.id,
+        label: nextItem.label,
+        routeName,
+        params: routeName === 'WeddingRoadmap' ? { state: 'progress' } : { focusItemId: nextItem.id },
+      };
+    }
+  }
+  return null;
+};
+
+const getRoadmapNextFocus = (checklistState) =>
+  getRoadmapNextFocusInStages(checklistState, ROADMAP_STAGE_ORDER);
+
+const getRoadmapNextFocusByTiming = ({ checklistState, weddingDayState, daysUntilWedding }) => {
+  if (weddingDayState === 'after') {
+    return getRoadmapNextFocusInStages(checklistState, ['stage-8']) || getRoadmapNextFocus(checklistState);
+  }
+
+  if (typeof daysUntilWedding === 'number') {
+    if (daysUntilWedding <= 14) {
+      return (
+        getRoadmapNextFocusInStages(checklistState, ['stage-7', 'stage-6', 'stage-4', 'stage-3']) ||
+        getRoadmapNextFocus(checklistState)
+      );
+    }
+    if (daysUntilWedding <= 45) {
+      return (
+        getRoadmapNextFocusInStages(checklistState, ['stage-6', 'stage-4', 'stage-5', 'stage-3', 'stage-2']) ||
+        getRoadmapNextFocus(checklistState)
+      );
+    }
+    if (daysUntilWedding <= 120) {
+      return (
+        getRoadmapNextFocusInStages(checklistState, ['stage-4', 'stage-3', 'stage-5', 'stage-2', 'stage-1']) ||
+        getRoadmapNextFocus(checklistState)
+      );
+    }
+  }
+
+  return getRoadmapNextFocus(checklistState);
+};
+
+const getPhaseSubtitle = ({ overallProgress, weddingDayState, daysUntilWedding }) => {
+  if (weddingDayState === 'today') return 'Today is for presence, not pressure.';
+  if (weddingDayState === 'after') return 'Wrap-up, gently — only what feels right.';
+  if (typeof daysUntilWedding === 'number' && daysUntilWedding <= 14) {
+    return 'Final stretch. Reduce, don’t add.';
+  }
+  if (overallProgress >= 80) return 'You’re nearly done.';
+  if (overallProgress >= 40) return 'Momentum phase. Keep it simple.';
+  return 'Foundation phase. Big decisions, slow pace.';
+};
+
+const clamp01 = (value) => Math.min(1, Math.max(0, Number(value) || 0));
+
+const pickTodayStep = ({
+  weddingDayState,
+  daysUntilWedding,
+  overallProgress,
+  hasBudget,
+  pendingRsvps,
+  guestCount,
+  guestCap,
+  roadmapFocus,
+  rsvpReminderLine,
+}) => {
+  if (daysUntilWedding === null && weddingDayState === 'unknown') {
+    return {
+      id: 'date',
+      title: 'Add your wedding date',
+      subtitle: 'So we can tailor timing and next steps.',
+      ctaLabel: 'Add Date',
+      type: 'date',
+      badgeIcon: '📅',
+      routeName: 'Account',
+      params: undefined,
+      metaLines: [],
+    };
+  }
+
+  if (!hasBudget) {
+    return {
+      ...DEFAULT_TODAY_STEP,
+      metaLines: [],
+    };
+  }
+
+  if (pendingRsvps > 0 && roadmapFocus?.stageId === 'stage-4') {
+    const followUps = Math.min(2, pendingRsvps);
+    const pendingLine = pendingRsvps === 1 ? '1 unconfirmed' : `${pendingRsvps} unconfirmed`;
+    const reminderLine = rsvpReminderLine || 'No reminder logged yet';
+    const metaLines = [pendingLine, reminderLine];
+    return {
+      id: 'guest',
+      title: `Send a gentle reminder to ${followUps} ${followUps === 1 ? 'guest' : 'guests'}`,
+      subtitle: 'Doing this now makes seating plans easier later.',
+      ctaLabel: 'Open Guest List',
+      type: 'guest',
+      badgeIcon: '👥',
+      routeName: 'Guest Nest',
+      params: { screen: 'GuestList' },
+      metaLines,
+    };
+  }
+
+  if (roadmapFocus?.label) {
+    const stageNumber = Number(String(roadmapFocus?.stageId || '').replace('stage-', ''));
+    const subtitle = Number.isFinite(stageNumber)
+      ? `Stage ${stageNumber} · Next recommended step`
+      : 'Next recommended step';
+    return {
+      id: 'roadmap',
+      title: roadmapFocus.label,
+      subtitle,
+      ctaLabel: 'Open Next Step',
+      type: 'roadmap',
+      badgeIcon: '🗺️',
+      routeName: roadmapFocus.routeName || 'WeddingRoadmap',
+      params: roadmapFocus.params || { state: 'progress' },
+      metaLines: [],
+    };
+  }
+
+  return {
+    id: 'steady',
+    title: 'Nothing urgent today',
+    subtitle: 'If you want a gentle nudge, ask Ivy what to do next.',
+    ctaLabel: 'Ask Ivy',
+    type: 'roadmap',
+    badgeIcon: '🌿',
+    routeName: 'AskIvy',
+    params: undefined,
+    metaLines: [],
+  };
+};
 
 const quickTools = [
   {
     id: 'vendor',
-    title: 'Vendor Match',
-    subtitle: 'Local suppliers',
+    title: 'Vendors',
+    subtitle: 'A few great matches waiting',
     icon: 'storefront-outline',
-    suggested: true,
+    routeName: 'WeddingHub',
+    params: undefined,
   },
   {
     id: 'budget',
     title: 'Budget Buddy',
-    subtitle: 'Track spending',
-    icon: 'shield-outline',
-  },
-  { id: 'guests', title: 'Guest Nest', subtitle: 'Manage RSVPs', icon: 'people-outline' },
-  { id: 'notes', title: 'Notes', subtitle: 'Open notes', icon: 'document-text-outline' },
-];
-
-const wellnessTiles = [
-  {
-    id: 'calm',
-    title: 'Calm Corner',
-    subtitle: 'Breathing, meditation & support',
-    tint: '#E9F3ED',
-    linkLabel: 'Explore →',
-    linkColor: '#7E9C84',
-    icon: 'leaf-outline',
-    accent: '#7E9C84',
+    subtitle: 'All on track — beautifully handled ♡',
+    icon: 'wallet-outline',
+    routeName: 'Budget Buddy',
+    params: undefined,
   },
   {
-    id: 'ivy',
-    title: 'Ask Ivy',
-    subtitle: 'Ask anything: vendors, budgets, scripts, advice',
-    tint: '#FFEDE6',
-    linkLabel: 'Chat Now →',
-    linkColor: '#F28F79',
-    icon: 'chatbubble-ellipses-outline',
-    accent: '#F28F79',
+    id: 'guests',
+    title: 'Guest Nest',
+    subtitle: 'See who’s coming',
+    icon: 'people-outline',
+    routeName: 'Guest Nest',
+    params: { screen: 'GuestList' },
+  },
+  {
+    id: 'notes',
+    title: 'Notes',
+    subtitle: 'Ready when you are',
+    icon: 'document-text-outline',
+    routeName: 'WeddingHub',
+    params: undefined,
   },
 ];
 
-const vendorCards = [
-  {
-    id: 'vendor-1',
-    name: 'Elegant Moments',
-    category: 'Photography',
-    image:
-      'https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    id: 'vendor-2',
-    name: 'The Manor Estate',
-    category: 'Venues',
-    image:
-      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80',
-  },
-];
-
-const ICON_ACCENT_COLOR = '#F28F79';
+const ICON_ACCENT_COLOR = '#FF9B85';
 
 const BudgetJarIcon = ({ size = 20, color = ICON_ACCENT_COLOR }) => (
   <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -207,15 +447,46 @@ const formatOrdinalDate = (date) => {
   return `${day}${suffix} ${month} ${date.getFullYear()}`;
 };
 
+const getSeasonLabel = (date) => {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return null;
+  const month = date.getMonth(); // 0-based
+  if (month >= 2 && month <= 4) return 'Spring';
+  if (month >= 5 && month <= 7) return 'Summer';
+  if (month >= 8 && month <= 10) return 'Autumn';
+  return 'Winter';
+};
+
 export default function HomeScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [now, setNow] = useState(Date.now());
   const [dailyQuote, setDailyQuote] = useState(QUOTES[0]);
   const [firstName, setFirstName] = useState('');
+  const [todayStep, setTodayStep] = useState(DEFAULT_TODAY_STEP);
+  const [inertiaNudges, setInertiaNudges] = useState([]);
+  const [roadmapProgress, setRoadmapProgress] = useState(0);
+  const [continuePlanTarget, setContinuePlanTarget] = useState(null);
+  const [planStats, setPlanStats] = useState({ budgetPct: 0, guestsPct: 0, vendorsPct: 0 });
+  const [guestConfirmedThisWeek, setGuestConfirmedThisWeek] = useState(0);
+  const [recentWinNote, setRecentWinNote] = useState(null);
+  const [welcomeBackPrompt, setWelcomeBackPrompt] = useState(null);
+  const [quickToolSignals, setQuickToolSignals] = useState({
+    focusStageId: null,
+    vendorsBooked: false,
+    hasBudget: false,
+    pendingRsvps: 0,
+    guestCap: null,
+  });
+  const [wellnessSignals, setWellnessSignals] = useState({
+    needsBoost: false,
+    progressTight: false,
+  });
   const [profile, setProfile] = useState({
     firstName: '',
     partnerName: '',
     weddingDate: '',
+    weddingLocation: '',
+    weddingType: '',
   });
 
   useEffect(() => {
@@ -242,10 +513,12 @@ export default function HomeScreen({ navigation }) {
     let mounted = true;
     const hydrate = async () => {
       try {
-        const [first, partner, wedding] = await Promise.all([
+        const [first, partner, wedding, weddingLocation, weddingType] = await Promise.all([
           AsyncStorage.getItem(FIRST_NAME_KEY),
           AsyncStorage.getItem(PARTNER_NAME_KEY),
           AsyncStorage.getItem(WEDDING_DATE_KEY),
+          AsyncStorage.getItem(WEDDING_LOCATION_KEY),
+          AsyncStorage.getItem(WEDDING_TYPE_KEY),
         ]);
         if (mounted) {
           const trimmedFirst = (first ?? '').trim();
@@ -254,6 +527,8 @@ export default function HomeScreen({ navigation }) {
             firstName: trimmedFirst,
             partnerName: trimmedPartner,
             weddingDate: wedding ?? '',
+            weddingLocation: (weddingLocation ?? '').trim(),
+            weddingType: (weddingType ?? '').trim(),
           });
           setFirstName(trimmedFirst);
         }
@@ -269,14 +544,361 @@ export default function HomeScreen({ navigation }) {
 
   useFocusEffect(hydrateProfile);
 
+	  const hydrateTodayFocus = useCallback(() => {
+	    let mounted = true;
+	    const hydrate = async () => {
+	      try {
+	        const [
+	          budgetState,
+	          guestNestState,
+	          checklistState,
+	          completionState,
+	          guestEstimateRaw,
+	          lastRsvpReminderRaw,
+	          storedWeddingDate,
+	          lastActiveAtRaw,
+	          lastTodayStepPressAtRaw,
+	          lastGuestNestOpenAtRaw,
+	          lastGuestNudgeShownAtRaw,
+	          lastTodayNudgeShownAtRaw,
+	          lastVendorNudgeShownAtRaw,
+	        ] = await Promise.all([
+	          loadBudgetState(),
+	          loadGuestNest(),
+	          loadChecklistState(),
+	          loadCompletionState(),
+	          AsyncStorage.getItem(GUEST_ESTIMATE_KEY),
+	          AsyncStorage.getItem(HOME_LAST_RSVP_REMINDER_AT_KEY),
+	          AsyncStorage.getItem(WEDDING_DATE_KEY),
+	          AsyncStorage.getItem(HOME_LAST_ACTIVE_AT_KEY),
+	          AsyncStorage.getItem(HOME_LAST_TODAY_STEP_PRESS_AT_KEY),
+	          AsyncStorage.getItem(GUEST_NEST_LAST_OPEN_AT_KEY),
+	          AsyncStorage.getItem(HOME_NUDGE_LAST_SHOWN_GUEST_KEY),
+	          AsyncStorage.getItem(HOME_NUDGE_LAST_SHOWN_TODAY_KEY),
+	          AsyncStorage.getItem(HOME_NUDGE_LAST_SHOWN_VENDOR_KEY),
+	        ]);
+
+        const totalBudget = Number(budgetState?.totalBudget);
+        const hasBudget = Number.isFinite(totalBudget) && totalBudget > 0;
+
+        const categories = Array.isArray(budgetState?.categories) ? budgetState.categories : [];
+        const allocations =
+          budgetState?.allocations && typeof budgetState.allocations === 'object'
+            ? budgetState.allocations
+            : {};
+
+        const visibleCategories = categories.filter((category) => category?.createdManually);
+        const totalCategoryCount = visibleCategories.length;
+        const allocatedCategoryCount = visibleCategories.filter(
+          (category) => Number(allocations?.[category.id] || 0) > 0,
+        ).length;
+        const budgetPct = totalCategoryCount > 0 ? allocatedCategoryCount / totalCategoryCount : 0;
+
+        const quotes = Array.isArray(budgetState?.quotes) ? budgetState.quotes : [];
+        const bookedQuotes = quotes.filter((quote) => quote.status === 'booked');
+
+        const categoryLabelById = categories.reduce((acc, cat) => {
+          if (cat?.id) acc[cat.id] = cat.label || '';
+          return acc;
+        }, {});
+
+        const coreBooked = new Set();
+        bookedQuotes.forEach((quote) => {
+          const text = `${quote?.categoryId || ''} ${
+            categoryLabelById[quote?.categoryId] || ''
+          }`.toLowerCase();
+          if (text.includes('venue')) coreBooked.add('venue');
+          if (text.includes('photo')) coreBooked.add('photography');
+          if (text.includes('cater') || text.includes('food')) coreBooked.add('catering');
+          if (
+            text.includes('music') ||
+            text.includes('dj') ||
+            text.includes('band') ||
+            text.includes('entertain')
+          ) {
+            coreBooked.add('music');
+          }
+        });
+        const CORE_VENDOR_RECOMMENDED_TOTAL = 4;
+        const vendorsPct =
+          CORE_VENDOR_RECOMMENDED_TOTAL > 0
+            ? coreBooked.size / CORE_VENDOR_RECOMMENDED_TOTAL
+            : 0;
+
+        const guests = Array.isArray(guestNestState?.guests) ? guestNestState.guests : [];
+        const guestCount = guests.length;
+        const pendingRsvps = guests.filter((guest) => guest.rsvpStatus === 'Pending').length;
+        const confirmedThisWeekCount = guests.filter((guest) => {
+          if (guest?.rsvpStatus !== 'Yes') return false;
+          const updatedAt = Number(guest?.updatedAt);
+          if (!Number.isFinite(updatedAt) || updatedAt <= 0) return false;
+          return Date.now() - updatedAt <= 7 * DAY_MS;
+        }).length;
+
+        const overallProgress = computeOverallProgress(checklistState || {});
+        const nextRoadmapFocus = getRoadmapNextFocus(checklistState || {});
+
+        const guestCap = parseGuestCap(guestEstimateRaw);
+        const hasGuestCap = Number.isFinite(guestCap) && guestCap > 0;
+        const guestDenom = hasGuestCap ? guestCap : guestCount;
+        const contactCapturedCount = guests.filter((g) =>
+          Boolean(g.email || g.phone || g.address),
+        ).length;
+        const guestsPct = guestDenom > 0 ? contactCapturedCount / guestDenom : 0;
+        const lastRsvpReminderAt = Number(lastRsvpReminderRaw);
+        const rsvpReminderLine = Number.isFinite(lastRsvpReminderAt) && lastRsvpReminderAt > 0
+          ? formatDaysSince(Date.now() - lastRsvpReminderAt)
+          : null;
+
+        const parsedWeddingDate = parseStoredWeddingDate(storedWeddingDate || '');
+        const weddingDayState = (() => {
+          if (!parsedWeddingDate) return 'unknown';
+          const target = new Date(parsedWeddingDate);
+          target.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(target);
+          dayEnd.setHours(23, 59, 59, 999);
+          const nowMs = Date.now();
+          if (nowMs < target.getTime()) return 'before';
+          if (nowMs > dayEnd.getTime()) return 'after';
+          return 'today';
+        })();
+        const daysUntilWedding = (() => {
+          if (!parsedWeddingDate) return null;
+          const target = new Date(parsedWeddingDate);
+          target.setHours(0, 0, 0, 0);
+          const diffMs = Math.max(0, target.getTime() - Date.now());
+          return Math.floor(diffMs / DAY_MS);
+        })();
+
+	        const timedRoadmapFocus = getRoadmapNextFocusByTiming({
+	          checklistState: checklistState || {},
+	          weddingDayState,
+	          daysUntilWedding,
+	        });
+
+        const step = pickTodayStep({
+          weddingDayState,
+          daysUntilWedding,
+          overallProgress,
+          hasBudget,
+          pendingRsvps,
+          guestCount,
+          guestCap: hasGuestCap ? guestCap : null,
+          roadmapFocus: timedRoadmapFocus,
+          rsvpReminderLine,
+        });
+
+		        if (mounted) {
+		          const buildRecentWinNote = () => {
+		            const state = completionState && typeof completionState === 'object' ? completionState : {};
+		            let best = null;
+		            Object.keys(state).forEach((stageId) => {
+		              const stageMap = state[stageId];
+		              if (!stageMap || typeof stageMap !== 'object') return;
+		              Object.keys(stageMap).forEach((itemId) => {
+		                const at = Number(stageMap[itemId]);
+		                if (!Number.isFinite(at) || at <= 0) return;
+		                if (!best || at > best.at) best = { stageId, itemId, at };
+		              });
+		            });
+		            if (!best) return null;
+
+		            const ageMs = Date.now() - best.at;
+		            const maxAgeMs = 48 * 60 * 60 * 1000;
+		            if (!Number.isFinite(ageMs) || ageMs < 0 || ageMs > maxAgeMs) return null;
+
+		            const items = getChecklistItems(best.stageId);
+		            const label = items.find((i) => i?.id === best.itemId)?.label;
+
+		            const yesterdayMs = 24 * 60 * 60 * 1000;
+		            const base =
+		              ageMs < 6 * 60 * 60 * 1000
+		                ? 'Done earlier — amazing.'
+		                : ageMs < yesterdayMs && isSameLocalDay(best.at, Date.now())
+		                  ? 'You sorted this today 🤍'
+		                  : 'You sorted this yesterday 🤍';
+
+		            const withLabel = label ? `${base} “${label}”` : base;
+		            return `${withLabel} Shall we line up the next lovely win?`;
+		          };
+
+		          const lastActiveAt = Number(lastActiveAtRaw);
+		          const daysSinceActive = getDaysSince(lastActiveAt);
+		          const needsBoost = typeof daysSinceActive === 'number' && daysSinceActive >= 7;
+		          const progressTight = isProgressTightForTimeline({
+		            weddingDayState,
+		            daysUntilWedding,
+		            overallProgress,
+		          });
+	          const lastTodayStepPressAt = Number(lastTodayStepPressAtRaw);
+	          const todayStepPressedToday = isSameLocalDay(lastTodayStepPressAt, Date.now());
+	          const daysSinceTodayStepPress = getDaysSince(lastTodayStepPressAt);
+	          const lastGuestNestOpenAt = Number(lastGuestNestOpenAtRaw);
+	          const daysSinceGuestNest = getDaysSince(lastGuestNestOpenAt);
+	          const lastGuestNudgeShownAt = Number(lastGuestNudgeShownAtRaw);
+	          const lastTodayNudgeShownAt = Number(lastTodayNudgeShownAtRaw);
+	          const lastVendorNudgeShownAt = Number(lastVendorNudgeShownAtRaw);
+
+	          const nextWelcomeBackPrompt = (() => {
+	            const returning =
+	              (typeof daysSinceActive === 'number' && daysSinceActive >= 1) ||
+	              (Number.isFinite(lastActiveAt) && Date.now() - lastActiveAt >= 6 * 60 * 60 * 1000);
+	            if (!returning) return null;
+
+	            const startedRecently =
+	              (typeof daysSinceTodayStepPress === 'number' && daysSinceTodayStepPress <= 7) ||
+	              (typeof daysSinceGuestNest === 'number' && daysSinceGuestNest <= 7);
+	            if (!startedRecently) return null;
+
+	            if (step?.id === 'steady') return null;
+	            return 'Welcome back — ready to continue?';
+	          })();
+
+	          const nudges = [];
+	          const vendorWrapComplete = Boolean(checklistState?.['stage-8']?.['vendor-wrap']);
+	          if (
+	            weddingDayState === 'after' &&
+	            !vendorWrapComplete &&
+	            !isSameLocalDay(lastVendorNudgeShownAt, Date.now())
+	          ) {
+	            nudges.push({
+	              id: 'vendor-feedback',
+	              type: 'vendor',
+	              message: '1 vendor feedback request pending.',
+	              ctaLabel: 'Wrap up vendors',
+	              routeName: 'Stage8VendorWrap',
+	              params: undefined,
+	              suggested: true,
+	              accessibilityLabel: 'Open vendor wrap-up',
+	            });
+	          }
+
+	          if (
+	            typeof daysSinceGuestNest === 'number' &&
+	            daysSinceGuestNest >= 3 &&
+	            (pendingRsvps > 0 || timedRoadmapFocus?.stageId === 'stage-4')
+	            && !isSameLocalDay(lastGuestNudgeShownAt, Date.now())
+	          ) {
+	            nudges.push({
+	              id: 'guest-inertia',
+	              type: 'guest',
+	              message: `It’s been ${daysSinceGuestNest} days — want to revisit your guest list?`,
+	              ctaLabel: 'Open Guest List',
+	              routeName: 'Guest Nest',
+	              params: { screen: 'GuestList' },
+	              suggested: true,
+	              accessibilityLabel: 'Open Guest Nest guest list',
+	            });
+	          }
+
+	          if (
+	            typeof daysSinceActive === 'number' &&
+	            daysSinceActive >= 1 &&
+	            !todayStepPressedToday &&
+	            !isSameLocalDay(lastTodayNudgeShownAt, Date.now())
+	          ) {
+	            nudges.push({
+	              id: 'today-step',
+	              type: 'today',
+	              message: 'Today’s Focus is ready.',
+	              ctaLabel: 'Open today’s focus',
+	              routeName: step?.routeName,
+	              params: step?.params,
+	              suggested: false,
+	              accessibilityLabel: 'Open today’s focus',
+	            });
+	          }
+
+	          const continuityLine = (() => {
+	            if (!step) return null;
+	            if (step.id === 'guest' && pendingRsvps > 0) {
+	              const pendingGuest = guests.find(
+	                (g) => g?.rsvpStatus === 'Pending' && typeof g?.fullName === 'string' && g.fullName.trim().length > 0,
+	              );
+	              const name = getFirstName(pendingGuest?.fullName);
+	              if (name) return `${name} hasn’t replied — a gentle nudge should do it.`;
+	              return 'Still waiting on a reply — a gentle nudge should do it.';
+	            }
+
+	            const daysSinceTodayPress = getDaysSince(lastTodayStepPressAt);
+	            if (daysSinceTodayPress === 1 && step.id !== 'steady') {
+	              return 'You started this yesterday — let’s finish it.';
+	            }
+	            if (daysSinceTodayPress === 2 && step.id !== 'steady') {
+	              return 'You started this two days ago — want to pick it back up?';
+	            }
+	            return null;
+	          })();
+
+		          const nextNudges = nudges.filter((n) => n?.routeName).slice(0, 3);
+
+		          setRoadmapProgress(overallProgress);
+		          setContinuePlanTarget(getContinuePlanTarget(nextRoadmapFocus));
+		          setTodayStep({ ...step, continuityLine });
+		          setRecentWinNote(buildRecentWinNote());
+		          setWelcomeBackPrompt(nextWelcomeBackPrompt);
+		          setInertiaNudges(nextNudges);
+		          setPlanStats({
+		            budgetPct: clamp01(budgetPct),
+		            guestsPct: clamp01(guestsPct),
+		            vendorsPct: clamp01(vendorsPct),
+		          });
+              setGuestConfirmedThisWeek(confirmedThisWeekCount);
+		          setQuickToolSignals({
+		            focusStageId: timedRoadmapFocus?.stageId ?? nextRoadmapFocus?.stageId ?? null,
+		            vendorsBooked: bookedQuotes.length > 0,
+		            hasBudget,
+		            pendingRsvps,
+                guestCap: hasGuestCap ? guestCap : null,
+		          });
+		          setWellnessSignals({
+		            needsBoost,
+		            progressTight,
+		          });
+		
+		          const shownKeys = [];
+		          const nowValue = String(Date.now());
+		          nextNudges.forEach((nudge) => {
+		            if (nudge.id === 'guest-inertia') shownKeys.push([HOME_NUDGE_LAST_SHOWN_GUEST_KEY, nowValue]);
+		            if (nudge.id === 'today-step') shownKeys.push([HOME_NUDGE_LAST_SHOWN_TODAY_KEY, nowValue]);
+		            if (nudge.id === 'vendor-feedback') shownKeys.push([HOME_NUDGE_LAST_SHOWN_VENDOR_KEY, nowValue]);
+		          });
+		          if (shownKeys.length > 0) {
+		            try {
+		              await AsyncStorage.multiSet(shownKeys);
+		            } catch (error) {
+		              console.warn('[Home] unable to store nudge shown timestamps', error);
+		            }
+		          }
+		        }
+
+		        try {
+		          await AsyncStorage.setItem(HOME_LAST_ACTIVE_AT_KEY, String(Date.now()));
+		        } catch (error) {
+		          console.warn('[Home] unable to store last active timestamp', error);
+	        }
+	      } catch (error) {
+	        console.warn('Unable to load today focus', error);
+	      }
+	    };
+
+    hydrate();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useFocusEffect(hydrateTodayFocus);
+
   const firstNameValue = firstName?.trim() ?? '';
   const partnerNameValue = profile.partnerName?.trim() ?? '';
   const hasFirstName = firstNameValue.length > 0;
   const hasPartnerName = partnerNameValue.length > 0;
-  const heroPhotoUri = null;
-  const initials =
-    (firstNameValue ? firstNameValue[0].toUpperCase() : '') +
-    (hasPartnerName ? partnerNameValue[0].toUpperCase() : '');
+  const coupleName = hasFirstName && hasPartnerName
+    ? `${firstNameValue} & ${partnerNameValue}`
+    : hasFirstName
+      ? firstNameValue
+      : 'Your wedding plan';
 
   const parsedWeddingDate = useMemo(
     () => parseStoredWeddingDate(profile.weddingDate),
@@ -320,83 +942,79 @@ export default function HomeScreen({ navigation }) {
     const seconds = totalSeconds % 60;
     return { days, hours, minutes, seconds };
   }, [countdownTarget, nowDate]);
-  const countdownUnits = countdownBreakdown
-    ? [
-        {
-          key: 'days',
-          label: countdownBreakdown.days === 1 ? 'day' : 'days',
-          value: countdownBreakdown.days,
-          pad: false,
-        },
-        {
-          key: 'hours',
-          label: countdownBreakdown.hours === 1 ? 'hour' : 'hours',
-          value: countdownBreakdown.hours,
-          pad: true,
-        },
-        {
-          key: 'minutes',
-          label: countdownBreakdown.minutes === 1 ? 'minute' : 'minutes',
-          value: countdownBreakdown.minutes,
-          pad: true,
-        },
-        {
-          key: 'seconds',
-          label: countdownBreakdown.seconds === 1 ? 'second' : 'seconds',
-          value: countdownBreakdown.seconds,
-          pad: true,
-        },
-      ]
-    : [];
-  const daypartGreeting = useMemo(() => {
-    const hour = nowDate.getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    if (hour < 22) return 'Good evening';
-    return 'Slow night';
-  }, [nowDate]);
-  const heroGreetingLine = hasFirstName
-    ? `${daypartGreeting}, ${firstNameValue}`
-    : 'Today starts gently.';
-  const heroSupportLine = hasPartnerName
-    ? `${firstNameValue} & ${partnerNameValue}`
-    : 'Your wedding, your pace.';
-  const countdownIntroLine = useMemo(() => {
-    if (!hasCountdownTarget) {
-      return 'Add your wedding date to start the countdown.';
+
+  const todayPhaseLine = useMemo(() => {
+    const daysRemaining = countdownBreakdown?.days;
+    const phaseName = (() => {
+      if (weddingDayState === 'after') return 'Wrap-Up Phase';
+      if (weddingDayState === 'today') return 'Protection Phase';
+      if (typeof daysRemaining === 'number' && daysRemaining <= 14) return 'Protection Phase';
+      if (roadmapProgress >= 67) return 'Protection Phase';
+      if (roadmapProgress >= 34) return 'Momentum Phase';
+      return 'Foundation Phase';
+    })();
+    return `You’re in the ${phaseName}`;
+  }, [countdownBreakdown, roadmapProgress, weddingDayState]);
+
+  const dashboardPhaseLabel = useMemo(() => {
+    const stripped = String(todayPhaseLine || '')
+      .replace(/^You’re in the\s+/i, '')
+      .trim();
+    if (!stripped) return null;
+    return stripped.replace(/\bPhase\b/i, 'phase');
+  }, [todayPhaseLine]);
+
+  const recommendedVendors = useMemo(
+    () => getRecommendedVendors(profile.weddingLocation, profile.weddingType),
+    [profile.weddingLocation, profile.weddingType],
+  );
+
+  const vendorSpotlightSubtitle = useMemo(() => {
+    const month = parsedWeddingDate
+      ? parsedWeddingDate.toLocaleString('en-US', { month: 'long' })
+      : null;
+    const cap = Number(quickToolSignals?.guestCap);
+    const capLabel = Number.isFinite(cap) && cap > 0 ? `${Math.round(cap)}+ guests` : null;
+
+    if (month && capLabel) {
+      return `For ${month} celebrations with ${capLabel} — these are our top picks`;
     }
-    if (weddingDayState === 'today') {
-      return 'Today is your big day.';
+    if (month) {
+      return `For ${month} celebrations — these are our top picks`;
     }
-    if (weddingDayState === 'after') {
-      return 'Already celebrated with love.';
+    return 'Curated for your wedding — let’s find the right fit';
+  }, [parsedWeddingDate, quickToolSignals?.guestCap]);
+
+  const suggestedQuickToolId = useMemo(() => {
+    if (quickToolSignals.focusStageId === 'stage-4' && quickToolSignals.pendingRsvps > 0) {
+      return 'guests';
     }
-    const daysRemaining = countdownBreakdown?.days ?? 0;
-    const label = daysRemaining === 1 ? 'day' : 'days';
-    return `${daysRemaining} ${label} until your big day.`;
-  }, [countdownBreakdown, hasCountdownTarget, weddingDayState]);
-  const countdownCaption = useMemo(() => {
-    if (!hasCountdownTarget) {
-      return 'Add your date to unlock your calm countdown.';
+    if (quickToolSignals.focusStageId === 'stage-2' && !quickToolSignals.vendorsBooked) {
+      return 'vendor';
     }
-    if (weddingDayState === 'today') {
-      return 'We’re right here with you — breathe, enjoy, be present.';
+    if (quickToolSignals.focusStageId === 'stage-1' && !quickToolSignals.hasBudget) {
+      return 'budget';
     }
-    if (weddingDayState === 'after') {
-      return 'Hope today was everything you wanted and more.';
-    }
-    const hour = nowDate.getHours();
-    if (hour < 12) {
-      return 'One calm step at a time.';
-    }
-    if (hour < 18) {
-      return 'You’re doing enough today.';
-    }
-    if (hour < 22) {
-      return 'Let the evening stay gentle.';
-    }
-    return 'Nothing needs deciding right now.';
-  }, [hasCountdownTarget, nowDate, weddingDayState]);
+    return null;
+  }, [quickToolSignals]);
+
+  const wellnessModel = useMemo(() => {
+    const stuck = wellnessSignals.needsBoost || wellnessSignals.progressTight;
+    const userEmotionalState = stuck ? 'stuck' : 'steady';
+    const tipOption = stuck ? 'What to say when someone’s upset' : 'Breathing exercise';
+    const subtitle = wellnessSignals.needsBoost
+      ? 'Welcome back — start with a tiny reset.'
+      : wellnessSignals.progressTight
+        ? 'If planning feels like too much, keep it tiny today.'
+        : 'For when planning feels like too much.';
+
+    return {
+      userEmotionalState,
+      tipOption,
+      subtitle,
+      suggested: stuck,
+    };
+  }, [wellnessSignals]);
 
   const handleNavigate = (route) => {
     if (navigation && route) {
@@ -406,289 +1024,525 @@ export default function HomeScreen({ navigation }) {
     console.log('[Home] navigate ->', route);
   };
 
-  const heroTopPadding = Math.max(0, insets.top - 20);
+  const topDaysLine = useMemo(() => {
+    if (!hasCountdownTarget) return 'Add your wedding date — we’ll keep it calm. Want to set it now?';
+    if (weddingDayState === 'today') return 'Today is here — breathe and enjoy it. We’ll handle one small thing at a time.';
+    if (weddingDayState === 'after') return 'You did it — take this part gently. When you’re ready, we’ll help you wrap up.';
+    const daysRemaining = countdownBreakdown?.days ?? 0;
+    const dayWord = daysRemaining === 1 ? 'day' : 'days';
+    return `${daysRemaining} beautiful ${dayWord} to go — you’re doing wonderfully.`;
+  }, [countdownBreakdown, hasCountdownTarget, weddingDayState]);
+
+  const handleTodayFocusPress = async () => {
+    const target = todayStep;
+    if (!target?.routeName) return;
+    try {
+      await AsyncStorage.setItem(HOME_LAST_TODAY_STEP_PRESS_AT_KEY, String(Date.now()));
+    } catch (error) {
+      console.warn('[Home] unable to store today step press timestamp', error);
+    }
+    if (target?.id === 'guest') {
+      try {
+        await AsyncStorage.setItem(HOME_LAST_RSVP_REMINDER_AT_KEY, String(Date.now()));
+      } catch (error) {
+        console.warn('[Home] unable to store RSVP reminder timestamp', error);
+      }
+    }
+    navigation?.navigate?.(target.routeName, target.params);
+  };
+
+  const handleInertiaNudgePress = (nudge) => {
+    if (!nudge?.routeName) return;
+    navigation?.navigate?.(nudge.routeName, nudge.params);
+  };
+
+  const handleContinuePlanPress = () => {
+    if (!continuePlanTarget?.routeName) {
+      navigation?.navigate?.('WeddingRoadmap', { state: 'progress' });
+      return;
+    }
+    navigation?.navigate?.(continuePlanTarget.routeName, continuePlanTarget.params);
+  };
+
+  const handleWelcomeBackPress = () => {
+    if (todayStep?.routeName && todayStep?.id !== 'steady') {
+      handleTodayFocusPress();
+      return;
+    }
+    handleContinuePlanPress();
+  };
+
+  const dashboardDaysLeftValue = useMemo(() => {
+    if (!hasCountdownTarget) return 'Add';
+    if (weddingDayState === 'today') return 'Today';
+    if (weddingDayState === 'after') return 'Done';
+    const daysRemaining = countdownBreakdown?.days ?? 0;
+    return String(daysRemaining);
+  }, [countdownBreakdown, hasCountdownTarget, weddingDayState]);
+
+  const weddingSizeExpertNote = useMemo(() => {
+    const cap = Number(quickToolSignals?.guestCap);
+    if (Number.isFinite(cap) && cap > 0) {
+      if (cap <= 60) return 'Couples planning smaller weddings often do this around now.';
+      if (cap <= 120) return 'Couples planning mid-size weddings often do this around now.';
+      return 'Couples planning larger weddings often do this around now.';
+    }
+    return 'Couples in your planning phase often do this around now.';
+  }, [quickToolSignals?.guestCap]);
+
+  const todayFootnote = useMemo(() => {
+    const stepId = todayStep?.id;
+    if (stepId === 'guest') {
+      const season = parsedWeddingDate ? getSeasonLabel(parsedWeddingDate) : null;
+      if (season) {
+        return `For a ${season.toLowerCase()} wedding your size, this unlocks table plans.`;
+      }
+      return 'For a wedding your size, this unlocks table plans.';
+    }
+    if (stepId === 'budget') {
+      return 'Planner note: couples who set a budget range early tend to feel calmer later. Shall we make it simple?';
+    }
+    if (stepId === 'date') {
+      return 'Planner note: couples who choose a month or season early find everything else gets easier. Want to add yours?';
+    }
+    if (stepId === 'roadmap') {
+      return `${weddingSizeExpertNote} This step tends to unlock a lot of clarity.`;
+    }
+    if (stepId === 'steady') {
+      return 'Planner note: it’s normal to have quieter days. Want a gentle nudge from Ivy?';
+    }
+    return `${weddingSizeExpertNote} Shall we keep it simple?`;
+  }, [parsedWeddingDate, todayStep?.id, weddingSizeExpertNote]);
+
+  const vendorExpertLine = useMemo(() => {
+    const weddingType = (profile?.weddingType ?? '').trim();
+    if (weddingType) {
+      return `Most couples planning a ${weddingType.toLowerCase()} wedding shortlist vendors around now. Want to pick two calm options?`;
+    }
+    return 'Most couples sort vendors around now. Want to pick two calm options?';
+  }, [profile?.weddingType]);
+
+  const todayCtaLabel = useMemo(() => {
+    if (!todayStep) return 'Let’s do this';
+    if (todayStep.id === 'steady') return 'Ask Ivy';
+    if (todayStep.type === 'roadmap') return 'Take me there';
+    return 'Let’s do this';
+  }, [todayStep]);
+
+  const welcomeHeading = useMemo(() => {
+    if (welcomeBackPrompt) return welcomeBackPrompt;
+    if (firstNameValue) return `Welcome back, ${firstNameValue} — ready to keep going?`;
+    return 'Welcome back — ready to keep going?';
+  }, [firstNameValue, welcomeBackPrompt]);
+
+  const postHeroNote = useMemo(() => {
+    if (guestConfirmedThisWeek > 0) {
+      const word = guestConfirmedThisWeek === 1 ? 'guest' : 'guests';
+      return `You confirmed ${guestConfirmedThisWeek} ${word} this week. One more keeps the rhythm going.`;
+    }
+    if (todayStep?.id === 'steady') {
+      return 'Nothing urgent tonight — shall we line up one lovely win for tomorrow?';
+    }
+    return 'You’re doing enough today. One small step keeps the rhythm going.';
+  }, [guestConfirmedThisWeek, todayStep?.id]);
 
   return (
-    <Screen scroll>
-      <View style={styles.dashboardColumn}>
-        <View style={[styles.heroSection, { paddingTop: heroTopPadding }]}>
-          <View style={styles.heroImageWrap}>
-            <View style={styles.heroHeaderRow}>
-              <View style={styles.avatarWrap}>
-                {heroPhotoUri ? (
-                  <Image source={{ uri: heroPhotoUri }} style={styles.avatarImage} />
-                ) : (
-                  <AppText variant="h3" color="textMuted">
-                    {initials || '?'}
-                  </AppText>
-                )}
-              </View>
-              <View style={styles.heroIdentityText}>
-                <AppText variant="bodySmall" style={styles.heroGreetingText}>
-                  {heroGreetingLine}
-                </AppText>
-                <AppText variant="h2" style={styles.heroNamesText} numberOfLines={1} ellipsizeMode="tail">
-                  {heroSupportLine}
-                </AppText>
-              </View>
-              <Pressable
-                onPress={() => navigation?.navigate?.('Account')}
-                style={styles.heroSettingsButton}
-                hitSlop={10}
-              >
-                <Ionicons name="settings-outline" size={18} color={colors.text} />
-              </Pressable>
-            </View>
-            <View style={styles.countdownCard}>
-              <View pointerEvents="none" style={styles.countdownAccent} />
-              <Pressable
-                onPress={() => navigation?.navigate?.('Account')}
-                hitSlop={{ top: spacing.xs, bottom: spacing.xs, left: spacing.xs, right: spacing.xs }}
-                style={styles.countdownHeaderCard}
-              >
-                <View style={styles.countdownHeaderLeft}>
-                  <View style={styles.countdownHeaderIcon}>
-                    <Ionicons name="calendar-outline" size={16} color={colors.text} />
-                  </View>
-                  <View style={styles.countdownHeaderText}>
-                    <AppText variant="body" style={styles.countdownDateText}>
-                      {countdownDateDisplay}
-                    </AppText>
-                    <AppText variant="bodySmall" color="textMuted" style={styles.countdownIntroText}>
-                      {countdownIntroLine}
-                    </AppText>
-                  </View>
-                </View>
-                <View style={styles.countdownEditButton}>
-                  <Ionicons name="pencil" size={14} color={colors.text} />
-                </View>
-              </Pressable>
-              {hasCountdownTarget ? (
-                <>
-                  <View style={styles.countdownGrid}>
-                    {countdownUnits.map((unit) => (
-                      <View key={unit.key} style={styles.countdownGridItem}>
-                        <AppText variant="h2" style={styles.countdownGridValue}>
-                          {unit.pad ? String(unit.value).padStart(2, '0') : unit.value}
-                        </AppText>
-                        <AppText variant="caption" color="textMuted" style={styles.countdownGridLabel}>
-                          {unit.label}
-                        </AppText>
-                      </View>
-                    ))}
-                  </View>
-                  <AppText variant="bodySmall" color="textMuted" style={styles.countdownFooterText}>
-                    {countdownCaption}
-                  </AppText>
-                </>
-              ) : (
-                <AppText variant="bodySmall" color="textMuted" style={styles.countdownFooterText}>
-                  {countdownCaption}
-                </AppText>
-              )}
-            </View>
-          </View>
-        </View>
-        <View style={styles.contentColumn}>
-          <Pressable
-            style={styles.roadmapCard}
-            onPress={() => navigation?.navigate?.('WeddingRoadmap', { state: 'progress' })}
-          >
-            <View pointerEvents="none" style={styles.roadmapAccent} />
-            <View style={styles.roadmapHeader}>
-              <View style={styles.roadmapIcon}>
-                <Ionicons name="map-outline" size={20} color={colors.text} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <AppText variant="h3">Your Wedding Roadmap</AppText>
-                <AppText variant="bodySmall" color="textMuted">
-                  Ready when you are
-                </AppText>
-              </View>
-              <AppText variant="bodySmall" color="accent" style={styles.roadmapLink}>
-                Continue ›
-              </AppText>
-            </View>
-            <View style={styles.progressTrack}>
-              <View style={styles.progressFill} />
-            </View>
-          </Pressable>
-
-        <View style={styles.sectionWrapper}>
-          <AppText variant="labelSmall" color="textMuted">
-            YOUR SPACES
-          </AppText>
-        </View>
-        <View style={styles.tilesRow}>
-          {featureTiles.map((tile) => (
+    <Screen
+      scroll={false}
+      ivyHelp={false}
+      backgroundColor={HOME_COLORS.background}
+      style={styles.screen}
+      contentContainerStyle={styles.screenContent}
+      edges={['top', 'left', 'right']}
+    >
+      <LinearGradient
+        colors={[HOME_COLORS.backgroundTop, HOME_COLORS.background]}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      <View style={styles.root}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: tabBarHeight + insets.bottom + 48 },
+          ]}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.topLineRow}>
+            <AppText variant="bodySmall" style={styles.topLineText}>
+              {topDaysLine}
+            </AppText>
             <Pressable
-              key={tile.id}
-              style={[
-                styles.largeTile,
-                { backgroundColor: tile.tint },
-                tile.primary && styles.largeTilePrimary,
+              onPress={() => navigation?.navigate?.('Account')}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Open settings"
+              style={({ pressed }) => [
+                styles.settingsButton,
+                pressed && styles.pressed,
               ]}
-              onPress={() =>
-                tile.id === 'hub'
-                  ? navigation.navigate('WeddingHub')
-                  : handleNavigate(tile.route)
-              }
             >
-              {tile.primary && <View pointerEvents="none" style={styles.tileAccent} />}
-              <View
-                style={[
-                  styles.tileIconBadge,
-                  tile.primary && styles.tileIconBadgePrimary,
-                ]}
-              >
-                <Ionicons
-                  name={tile.icon}
-                  size={22}
-                  color={tile.primary ? '#FFF' : colors.text}
-                />
-              </View>
-              <AppText
-                variant="h3"
-                style={[styles.tileTitle, tile.primary && styles.tileTitlePrimary]}
-              >
-                {tile.title}
-              </AppText>
-              <AppText
-                variant="bodySmall"
-                color={tile.primary ? 'text' : 'textMuted'}
-                style={tile.primary && styles.tileSubtitlePrimary}
-              >
-                {tile.subtitle}
-              </AppText>
+              <Ionicons name="settings-outline" size={18} color="rgba(43,43,43,0.72)" />
             </Pressable>
-          ))}
-        </View>
+          </View>
 
-        <View style={styles.sectionWrapper}>
-          <AppText variant="labelSmall" color="textMuted">
-            QUICK TOOLS
-          </AppText>
-          <View style={styles.quickGrid}>
-            {quickTools.map((tool) => (
-              <Pressable
-                key={tool.id}
-                style={[styles.quickCard, tool.suggested && styles.quickCardSuggested]}
-              >
-                {tool.suggested ? (
-                  <View style={styles.quickTag}>
-                    <AppText variant="caption" color="text">
-                      Suggested
-                    </AppText>
-                  </View>
-                ) : null}
-                <View
-                  style={[
-                    styles.quickIconBadge,
-                    tool.suggested && styles.quickIconBadgeSuggested,
-                  ]}
-                >
-                  {tool.id === 'budget' ? (
-                    <BudgetJarIcon color={tool.suggested ? colors.warning : ICON_ACCENT_COLOR} />
-                  ) : (
-                    <Ionicons name={tool.icon} size={20} color={colors.text} />
-                  )}
-                </View>
-                <AppText variant="h3" style={styles.quickTitle}>
-                  {tool.title}
-                </AppText>
-                <AppText variant="bodySmall" color="textMuted">
-                  {tool.subtitle}
-                </AppText>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.sectionWrapper}>
-          <AppText variant="labelSmall" color="textMuted">
-            WELLNESS & SUPPORT
-          </AppText>
-          <View style={styles.wellnessRow}>
-            {wellnessTiles.map((card) => (
-              <View
-                key={card.id}
-                style={[
-                  styles.wellnessCard,
-                  { backgroundColor: card.tint },
-                  card.id === 'calm' ? styles.wellnessCardCool : styles.wellnessCardWarm,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.wellnessIconBadge,
-                    card.id === 'calm' ? styles.wellnessIconBadgeCool : styles.wellnessIconBadgeWarm,
-                  ]}
-                >
-                  <Ionicons
-                    name={card.icon ?? 'sparkles-outline'}
-                    size={20}
-                    color={card.accent ?? card.linkColor}
-                  />
-                </View>
-                <AppText variant="h3" style={styles.wellnessTitle}>
-                  {card.title}
-                </AppText>
-                <AppText variant="bodySmall" color="textMuted">
-                  {card.subtitle}
-                </AppText>
-                <View style={styles.wellnessDivider} />
-                <AppText variant="bodySmall" style={[styles.wellnessLink, { color: card.linkColor }]}>
-                  {card.linkLabel}
-                </AppText>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={styles.vendorsCard}>
-          <View style={styles.vendorsHeader}>
-            <View style={styles.vendorsIcon}>
-              <Ionicons name="pricetag-outline" size={18} color={colors.text} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <AppText variant="h3">Vendors</AppText>
-              <AppText variant="bodySmall" color="textMuted">
-                Explore lovely vendors
-              </AppText>
-            </View>
-          </View>
-          <View style={styles.vendorRow}>
-            {vendorCards.map((vendor) => (
-              <View key={vendor.id} style={styles.vendorTile}>
-                <View style={styles.vendorImageWrap}>
-                  <Image source={{ uri: vendor.image }} style={styles.vendorImage} />
-                </View>
-                <AppText variant="body" style={styles.vendorName}>
-                  {vendor.name}
-                </AppText>
-                <AppText variant="caption">{vendor.category}</AppText>
-              </View>
-            ))}
-          </View>
-          <Pressable hitSlop={6}>
-            <AppText variant="bodySmall" color="accent">
-              View All Vendors →
+          <Pressable
+            onPress={handleWelcomeBackPress}
+            accessibilityRole="button"
+            accessibilityLabel={welcomeHeading}
+            hitSlop={8}
+            style={({ pressed }) => [styles.welcomeHeadingPressable, pressed && styles.pressed]}
+          >
+            <AppText variant="h3" style={styles.welcomeHeadingText}>
+              {welcomeHeading}
             </AppText>
           </Pressable>
-        </View>
 
-        <View style={styles.quoteCard}>
-          <AppText variant="body" align="center">
-            {dailyQuote}
-          </AppText>
-        </View>
+          <View style={styles.heroBlock}>
+            <TodayStepCard
+              title={todayStep.title}
+              subtitle={todayStep.subtitle}
+              continuityLine={todayStep.continuityLine}
+              ctaLabel={todayCtaLabel}
+              type={todayStep.type}
+              badgeIcon={todayStep.badgeIcon}
+              phaseLine={todayPhaseLine}
+              metaLines={todayStep.metaLines}
+              onPress={handleTodayFocusPress}
+              footnote={todayFootnote}
+            />
+
+            <View style={styles.postHeroNote}>
+              <View style={styles.postHeroNoteIconBadge}>
+                <Ionicons name="checkmark" size={18} color="#2F6D52" />
+              </View>
+              <AppText variant="bodySmall" style={styles.postHeroNoteText}>
+                {postHeroNote}
+              </AppText>
+            </View>
+          </View>
+
+          <View style={styles.sectionStack}>
+            <AppText variant="labelSmall" style={styles.sectionLabel}>
+              LET’S LOOK AT WHERE YOU ARE
+            </AppText>
+
+            <PlanSnapshot
+              coupleName={coupleName}
+              weddingDateLabel={countdownDateDisplay}
+              daysLeftValue={dashboardDaysLeftValue}
+              daysLeftMeta={dashboardPhaseLabel}
+              roadmapValue={`${roadmapProgress}%`}
+              budgetValue={`${Math.round(planStats.budgetPct * 100)}%`}
+              guestsValue={`${Math.round(planStats.guestsPct * 100)}%`}
+              onPressDaysLeft={() => navigation?.navigate?.('Account')}
+              onPressRoadmap={() => navigation?.navigate?.('WeddingRoadmap', { state: 'progress' })}
+              onPressBudget={() => navigation?.navigate?.('Budget Buddy')}
+              onPressGuests={() => navigation?.navigate?.('Guest Nest', { screen: 'GuestList' })}
+              onPressContinue={handleContinuePlanPress}
+              continueLabel="Show me what’s next"
+              statusLabel="Nothing urgent tonight — tomorrow we’ll look at table settings"
+            />
+
+            <AppText variant="bodySmall" align="center" style={styles.centerAffirmation}>
+              Everything essential is in hand. Nothing to worry about.
+            </AppText>
+          </View>
+
+          <View style={styles.sectionStack}>
+            <AppText variant="bodySmall" style={styles.toolsIntro}>
+              While you’re here, there’s a small win waiting…
+            </AppText>
+            <View style={styles.quickToolsGrid}>
+              {quickTools.map((tool) => {
+                const suggested = suggestedQuickToolId === tool.id;
+                const variant = tool.id === 'budget' || tool.id === 'guests' ? 'safe' : 'neutral';
+                const completed =
+                  tool.id === 'budget'
+                    ? planStats.budgetPct >= 0.8
+                    : tool.id === 'guests'
+                      ? planStats.guestsPct >= 0.6
+                      : false;
+                const headline =
+                  tool.id === 'budget'
+                    ? completed
+                      ? 'All on track — you sorted this recently ♡'
+                      : 'A calm number to anchor decisions'
+                    : tool.id === 'guests'
+                      ? guestConfirmedThisWeek > 0
+                        ? `${guestConfirmedThisWeek} new replies — already coming along ♡`
+                        : tool.subtitle
+                      : tool.subtitle;
+
+                const iconColor = variant === 'safe' ? HOME_COLORS.green : HOME_COLORS.coral;
+                const icon = tool.id === 'budget' ? (
+                  <BudgetJarIcon size={22} color={iconColor} />
+                ) : (
+                  <Ionicons name={tool.icon} size={22} color={iconColor} />
+                );
+                return (
+                  <QuickToolPill
+                    key={tool.id}
+                    headline={headline}
+                    title={tool.title}
+                    icon={icon}
+                    suggested={suggested}
+                    variant={variant}
+                    completed={completed}
+                    onPress={() => navigation?.navigate?.(tool.routeName, tool.params)}
+                  />
+                );
+              })}
+            </View>
+          </View>
+
+          <View style={styles.sectionStack}>
+            <VendorCarousel
+              vendors={recommendedVendors}
+              subtitle={vendorSpotlightSubtitle}
+              weddingType={profile.weddingType}
+              location={profile.weddingLocation}
+              onPressVendor={() => navigation?.navigate?.('WeddingHub')}
+              onViewAll={() => navigation?.navigate?.('WeddingHub')}
+              style={styles.vendorSection}
+            />
+
+            <AppText variant="bodySmall" align="center" style={styles.vendorFootnote}>
+              {vendorExpertLine}
+            </AppText>
+          </View>
+
+          <View style={styles.sectionStack}>
+            <AppText variant="labelSmall" style={styles.wellbeingLabel}>
+              AND WHENEVER YOU NEED A MOMENT…
+            </AppText>
+            <WellnessPanel
+              subtitle={wellnessModel.subtitle}
+              resetOption="2-minute reset"
+              tipOption={wellnessModel.tipOption}
+              suggested={wellnessModel.suggested}
+              extraOption="Journal a thought"
+              onPressReset={() => navigation?.navigate?.('CalmBreathing')}
+              onPressTip={() =>
+                navigation?.navigate?.(
+                  wellnessModel.userEmotionalState === 'stuck' ? 'CalmScripts' : 'CalmBreathing',
+                )
+              }
+              onPressExtra={() => navigation?.navigate?.('CalmCorner')}
+              onExplore={() => navigation?.navigate?.('CalmCorner')}
+            />
+
+            <AppText variant="bodySmall" align="center" style={styles.footerLine}>
+              I’ll have your next step ready in the morning.
+            </AppText>
+          </View>
+        </ScrollView>
+
+        <IvyHelpFab
+          insetRight={18}
+          insetBottom={tabBarHeight + insets.bottom + 18}
+          style={styles.ivyFab}
+        />
       </View>
-    </View>
-  </Screen>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    paddingHorizontal: 0,
+  },
+  screenContent: {
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+  root: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    gap: 28,
+  },
+  ivyFab: {
+    zIndex: 999,
+    elevation: 20,
+  },
+  sectionStack: {
+    width: '100%',
+    gap: 16,
+  },
+  pressed: {
+    opacity: 0.92,
+  },
+  topLineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  topLineText: {
+    flex: 1,
+    minWidth: 0,
+    color: HOME_COLORS.textBody,
+    fontFamily: 'Outfit_400Regular',
+  },
+  settingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.04)',
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  welcomeHeadingPressable: {
+    width: '100%',
+  },
+  welcomeHeadingText: {
+    fontFamily: 'PlayfairDisplay_600SemiBold',
+    fontSize: 22,
+    lineHeight: 28,
+    color: '#6F6A63',
+  },
+  heroBlock: {
+    width: '100%',
+  },
+  postHeroNote: {
+    marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#E6F3EC',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(120,170,145,0.25)',
+  },
+  postHeroNoteIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#D7EEE3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  postHeroNoteText: {
+    flex: 1,
+    minWidth: 0,
+    color: '#2F6D52',
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  welcomeBackPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.65)',
+    borderRadius: 999,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,155,133,0.18)',
+    shadowColor: 'rgba(0,0,0,0.06)',
+    shadowOpacity: 1,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 3,
+  },
+  welcomeBackText: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: 'Outfit_500Medium',
+    color: colors.text,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    letterSpacing: 2,
+    color: '#A09A92',
+    fontFamily: 'Outfit_500Medium',
+  },
+  sectionLabelGuidance: {
+    color: '#FF9B85',
+  },
+  sectionLabelConfidence: {
+    color: '#6F8A75',
+  },
+  sectionLabelSpacing: {
+    marginTop: 8,
+  },
+  centerAffirmation: {
+    color: HOME_COLORS.textSoft,
+    opacity: 0.92,
+    paddingHorizontal: 12,
+    lineHeight: 20,
+  },
+  toolsIntro: {
+    color: HOME_COLORS.textBody,
+    marginTop: 0,
+  },
+  expertLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: 'rgba(255,155,133,0.15)',
+    borderRadius: 18,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,155,133,0.18)',
+  },
+  expertLineText: {
+    flex: 1,
+    minWidth: 0,
+    textAlign: 'center',
+    color: 'rgba(43,43,43,0.72)',
+    fontFamily: 'Outfit_500Medium',
+  },
+  quickToolsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  vendorSection: {
+    marginTop: 0,
+  },
+  vendorFootnote: {
+    color: HOME_COLORS.textSoft,
+    opacity: 0.9,
+    paddingHorizontal: 12,
+    lineHeight: 20,
+  },
+  wellbeingLabel: {
+    letterSpacing: 2,
+    fontSize: 11,
+    color: HOME_COLORS.green,
+    opacity: 0.9,
+    marginLeft: 0,
+    marginTop: 0,
+    fontFamily: 'Outfit_500Medium',
+  },
+  footerLine: {
+    color: HOME_COLORS.textSoft,
+    fontFamily: 'PlayfairDisplay_400Regular',
+    fontStyle: 'italic',
+    opacity: 0.85,
+    marginTop: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
   dashboardColumn: {
     width: '100%',
     alignSelf: 'stretch',
@@ -700,7 +1554,7 @@ const styles = StyleSheet.create({
   heroSection: {
     width: '100%',
     alignSelf: 'stretch',
-    backgroundColor: '#FFF7F2',
+    backgroundColor: HOME_COLORS.background,
     marginBottom: 36,
   },
   heroBleed: {
@@ -813,7 +1667,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FFF7F2',
+    backgroundColor: 'rgba(255,155,133,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -823,7 +1677,7 @@ const styles = StyleSheet.create({
   },
   countdownDateText: {
     marginLeft: 0,
-    color: '#B4614D',
+    color: '#FF9B85',
     fontWeight: '600',
   },
   countdownIntroText: {
@@ -855,7 +1709,7 @@ const styles = StyleSheet.create({
   countdownGridValue: {
     fontFamily: 'PlayfairDisplay_700Bold',
     fontSize: 34,
-    color: '#F26855',
+    color: colors.primary,
     lineHeight: 40,
   },
   countdownGridLabel: {
@@ -872,66 +1726,45 @@ const styles = StyleSheet.create({
     color: '#B87F71',
     fontFamily: 'Outfit_500Medium',
   },
-  roadmapCard: {
+  ivyHeroCard: {
+    backgroundColor: 'rgba(255,155,133,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,143,121,0.18)',
     borderRadius: 22,
-    backgroundColor: 'rgba(255,155,133,0.16)',
-    paddingVertical: 26,
-    paddingHorizontal: 24,
-    marginBottom: 18,
-    shadowColor: '#F1E3DA',
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 10 },
-    position: 'relative',
-    overflow: 'hidden',
+    padding: 16,
+    shadowColor: '#E8E2DB',
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    marginBottom: 16,
   },
-  roadmapAccent: {
-    position: 'absolute',
-    left: 0,
-    top: 12,
-    bottom: 12,
-    width: 6,
-    borderRadius: 4,
-    backgroundColor: '#FF9B85',
-    opacity: 0.85,
-  },
-  roadmapHeader: {
+  ivyHeroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 12,
   },
-  roadmapIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFE9E0',
+  ivyIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.78)',
+    borderWidth: 1,
+    borderColor: 'rgba(242,143,121,0.18)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
   },
-  roadmapTitle: {
+  ivyHeroTitle: {
     fontFamily: 'PlayfairDisplay_600SemiBold',
-    fontSize: 18,
     color: '#2F2925',
   },
-  roadmapSubtitle: {
-    color: '#9B8B82',
-    marginTop: 4,
+  ivyHeroDivider: {
+    height: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+    marginVertical: 8,
   },
-  roadmapLink: {
-    color: '#F28F79',
-    fontWeight: '600',
-  },
-  progressTrack: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#F2D4C5',
-    overflow: 'hidden',
-    marginTop: 18,
-  },
-  progressFill: {
-    width: '0%',
-    height: '100%',
-    backgroundColor: '#F05F40',
+  ivyHeroLink: {
+    fontFamily: 'Outfit_500Medium',
+    color: colors.accent,
   },
   tilesRow: {
     flexDirection: 'row',
@@ -978,7 +1811,7 @@ const styles = StyleSheet.create({
     color: ICON_ACCENT_COLOR,
   },
   tileIconTextPrimary: {
-    color: '#F05F40',
+    color: colors.primary,
   },
   tileIconBadgePrimary: {
     backgroundColor: '#FFE3D8',
@@ -1006,10 +1839,20 @@ const styles = StyleSheet.create({
     marginTop: 34,
   },
   sectionLabel: {
-    fontSize: 13,
+    fontSize: 11,
     letterSpacing: 2,
-    color: '#8F8F8F',
-    marginBottom: 18,
+    color: '#A09A92',
+    fontFamily: 'Outfit_500Medium',
+  },
+  quickPillsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: 16,
+  },
+  quickPillItem: {
+    width: '48%',
+    marginBottom: 16,
   },
   quickGrid: {
     flexDirection: 'row',
@@ -1061,10 +1904,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   quickSubtitle: {
-    marginTop: 4,
-    color: '#9D8F86',
-    fontSize: 13,
     textAlign: 'center',
+    marginTop: spacing.xs,
   },
   quickTag: {
     position: 'absolute',
@@ -1085,7 +1926,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   wellnessCard: {
-    width: '48%',
+    width: '100%',
     borderRadius: 26,
     padding: 22,
     shadowColor: '#E8E2DB',
@@ -1100,6 +1941,9 @@ const styles = StyleSheet.create({
   wellnessCardWarm: {
     borderWidth: 1,
     borderColor: 'rgba(242,143,121,0.25)',
+  },
+  wellnessCardPressed: {
+    opacity: 0.92,
   },
   wellnessIconBadge: {
     width: 40,
@@ -1130,81 +1974,32 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.08)',
     marginVertical: 12,
   },
-  wellnessLink: {
-    fontWeight: '600',
+  wellnessQuickRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  vendorsCard: {
-    marginTop: 44,
-    borderRadius: 28,
-    backgroundColor: '#FFEFE7',
-    padding: 24,
-    shadowColor: '#F0D6CA',
-    shadowOpacity: 0.4,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 10 },
+  wellnessQuickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(242,143,121,0.25)',
-    marginBottom: 24,
+    borderColor: 'rgba(126,156,132,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.85)',
   },
-  vendorsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  vendorsIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFE1D7',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 14,
-  },
-  vendorsTitle: {
-    fontFamily: 'PlayfairDisplay_700Bold',
-    fontSize: 22,
-    color: '#2B1F1A',
-  },
-  vendorsSubtitle: {
-    color: '#9D8F86',
-  },
-  vendorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 18,
-  },
-  vendorTile: {
-    width: '48%',
-  },
-  vendorImageWrap: {
-    height: 130,
-    borderRadius: 18,
-    overflow: 'hidden',
-    marginBottom: 12,
-  },
-  vendorImage: {
-    width: '100%',
-    height: '100%',
+  wellnessQuickChipPressed: {
     opacity: 0.9,
   },
-  vendorName: {
-    fontFamily: 'PlayfairDisplay_600SemiBold',
-    fontSize: 16,
+  wellnessQuickText: {
     color: '#2F2925',
+    fontFamily: 'Outfit_500Medium',
   },
-  vendorCategory: {
-    color: '#9D8F86',
-    marginTop: 2,
-  },
-  vendorsLink: {
-    marginTop: 18,
-    color: '#FFFFFF',
+  wellnessLink: {
     fontWeight: '600',
-    backgroundColor: '#F28F79',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    borderRadius: 999,
-    alignSelf: 'center',
   },
   quoteCard: {
     marginTop: 20,
